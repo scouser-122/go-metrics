@@ -16,6 +16,17 @@ func UpdateHandler(res http.ResponseWriter, req *http.Request) {
 }
 
 func processUpdateRequest(req *http.Request) int {
+	if req.Method != http.MethodPost {
+		fmt.Printf("Incorrect request method: %q\n", req.Method)
+		return http.StatusNotFound
+	}
+
+	contentType := req.Header.Get("Content-Type")
+	if contentType != "text/plain" {
+		fmt.Printf("Incorrect request content type: %q\n", contentType)
+		return http.StatusNotFound
+	}
+
 	fullPath := req.URL.Path
 	pathSegments := strings.Split(fullPath, "/")
 
