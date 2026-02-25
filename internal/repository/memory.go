@@ -47,11 +47,11 @@ func (memStorage *MemStorage) SaveGauge(name string, value float64) {
 func (memStorage *MemStorage) Print() {
 	fmt.Printf("Metrics: [\n")
 	for i, v := range memStorage.Metrics {
-		var delta string = "<nil>"
+		var delta = "<nil>"
 		if v.Delta != nil {
 			delta = strconv.FormatInt(*v.Delta, 10)
 		}
-		var value string = "<nil>"
+		var value = "<nil>"
 		if v.Value != nil {
 			value = strconv.FormatFloat(*v.Value, 'f', 2, 64)
 		}
