@@ -17,12 +17,12 @@ func (memStorage *MemStorage) SaveCounter(name string, value int64) {
 		return m.MType == models.Counter && m.ID == name
 	})
 	if index != -1 {
-		memStorage.Metrics[index].Delta = &value
+		*memStorage.Metrics[index].Delta += value
 	} else {
 		metric := models.Metrics{
 			ID:    name,
 			MType: models.Counter,
-			Delta: &value,
+			Delta: new(int64),
 		}
 		memStorage.Metrics = append(memStorage.Metrics, metric)
 	}
@@ -33,12 +33,12 @@ func (memStorage *MemStorage) SaveGauge(name string, value float64) {
 		return m.MType == models.Gauge && m.ID == name
 	})
 	if index != -1 {
-		memStorage.Metrics[index].Value = &value
+		*memStorage.Metrics[index].Value = value
 	} else {
 		metric := models.Metrics{
 			ID:    name,
 			MType: models.Gauge,
-			Value: &value,
+			Value: new(float64),
 		}
 		memStorage.Metrics = append(memStorage.Metrics, metric)
 	}
