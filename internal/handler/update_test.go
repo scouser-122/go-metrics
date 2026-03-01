@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,6 +14,7 @@ import (
 type want struct {
 	code        int
 	contentType string
+	body        string
 }
 
 type request struct {
@@ -36,6 +38,7 @@ var tests = []struct {
 		want: want{
 			code:        http.StatusOK,
 			contentType: "text/plain",
+			body:        "120.50",
 		},
 	},
 	{
@@ -48,6 +51,7 @@ var tests = []struct {
 		want: want{
 			code:        http.StatusOK,
 			contentType: "text/plain",
+			body:        "10",
 		},
 	},
 	{
@@ -149,15 +153,16 @@ var tests = []struct {
 }
 
 func TestUpdateHandler(t *testing.T) {
-	storage := repository.MemStorage{}
-	service := service.MetricsService{
-		Storage: &storage,
-	}
-	handler := UpdateHandler{
-		Service: service,
-	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			storage := repository.MemStorage{}
+			service := service.MetricsService{
+				Storage: &storage,
+			}
+			handler := UpdateHandler{
+				Service: service,
+			}
+
 			request := httptest.NewRequest(test.request.method, test.request.path, nil)
 			request.Header.Add("Content-Type", test.request.contentType)
 			// создаём новый Recorder
@@ -168,6 +173,12 @@ func TestUpdateHandler(t *testing.T) {
 			// проверяем код ответа
 			assert.Equal(t, test.want.code, res.StatusCode)
 			assert.Equal(t, test.want.contentType, res.Header.Get("Content-Type"))
+			if res.StatusCode == http.StatusOK && test.want.body != "" {
+				bodyBytes, err := io.ReadAll(res.Body)
+				assert.Nil(t, err)
+				bodyString := string(bodyBytes)
+				assert.Equal(t, test.want.body, bodyString)
+			}
 			res.Body.Close()
 		})
 	}
