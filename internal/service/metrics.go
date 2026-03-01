@@ -12,43 +12,45 @@ type MetricsService struct {
 	Storage repository.MetricsStorage
 }
 
-func (service *MetricsService) SaveMetric(metricType string, name string, value string) (bool, error) {
+func (service *MetricsService) SaveMetric(metricType string, name string, value string) (string, error) {
+	var result string
 	if metricType != models.Counter && metricType != models.Gauge {
-		return false, models.IncorrectMetricType{
+		return result, models.IncorrectMetricType{
 			Message: fmt.Sprintf("Metric type incorrect: %q", metricType),
 		}
 	}
 
-	var saveResult bool
 	switch metricType {
 	case models.Counter:
 		counterValue, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return false, models.MetricFormatError{
+			return result, models.MetricFormatError{
 				Message: fmt.Sprintf("Metric counter incorrect format: %v\n", err),
 			}
 		}
-		saveResult, err = service.Storage.SaveCounter(name, counterValue)
+		saveResult, err := service.Storage.SaveCounter(name, counterValue)
 		if err != nil {
-			return false, models.MetricSaveError{
+			return result, models.MetricSaveError{
 				Message: fmt.Sprintf("Metric counter save failed: %v\n", err),
 			}
 		}
+		result = strconv.FormatInt(saveResult, 10)
 
 	case models.Gauge:
 		gaugeValue, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			return false, models.MetricFormatError{
+			return result, models.MetricFormatError{
 				Message: fmt.Sprintf("Metric gauge incorrect format: %v\n", err),
 			}
 		}
-		saveResult, err = service.Storage.SaveGauge(name, gaugeValue)
+		saveResult, err := service.Storage.SaveGauge(name, gaugeValue)
 		if err != nil {
-			return false, models.MetricSaveError{
+			return result, models.MetricSaveError{
 				Message: fmt.Sprintf("Metric gauge save failed: %v\n", err),
 			}
 		}
+		result = strconv.FormatFloat(saveResult, 'f', 2, 64)
 	}
 
-	return saveResult, nil
+	return result, nil
 }
