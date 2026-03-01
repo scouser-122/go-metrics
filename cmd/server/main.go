@@ -5,9 +5,19 @@ import (
 	"net/http"
 
 	"github.com/scouser-122/go-metrics/internal/handler"
+	"github.com/scouser-122/go-metrics/internal/repository"
+	"github.com/scouser-122/go-metrics/internal/service"
 )
 
 func main() {
+	storage := repository.MemStorage{}
+	service := service.MetricsService{
+		Storage: &storage,
+	}
+	handler := handler.UpdateHandler{
+		Service: service,
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/update", handler.UpdateHandler)
 	mux.HandleFunc("/update/", handler.UpdateHandler)

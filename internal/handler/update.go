@@ -1,21 +1,25 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	models "github.com/scouser-122/go-metrics/internal/model"
 	"github.com/scouser-122/go-metrics/internal/service"
 )
 
-func UpdateHandler(res http.ResponseWriter, req *http.Request) {
-	res.Header().Set("content-type", "text/plain")
-	res.WriteHeader(processUpdateRequest(req))
+type UpdateHandler struct {
+	Service service.MetricsService
 }
 
-func processUpdateRequest(req *http.Request) int {
+func (h *UpdateHandler) UpdateHandler(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("content-type", "text/plain")
+	res.WriteHeader(h.processUpdateRequest(req))
+}
+
+func (h *UpdateHandler) processUpdateRequest(req *http.Request) int {
 	if req.Method != http.MethodPost {
 		fmt.Printf("Incorrect request method: %q\n", req.Method)
 		return http.StatusNotFound
@@ -36,10 +40,6 @@ func processUpdateRequest(req *http.Request) int {
 	}
 
 	metricType := pathSegments[2]
-	if metricType != models.Counter && metricType != models.Gauge {
-		fmt.Printf("Metric type incorrect: %q\n", metricType)
-		return http.StatusBadRequest
-	}
 
 	if len(pathSegments) < 4 {
 		fmt.Printf("Metric name not specified\n")
@@ -55,21 +55,18 @@ func processUpdateRequest(req *http.Request) int {
 
 	value := pathSegments[4]
 
-	switch metricType {
-	case models.Counter:
-		counterValue, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			fmt.Printf("Metric counter incorrect format: %v\n", err)
+	_, err := h.Service.SaveMetric(metricType, name, value)
+	if err != nil {
+		if errors.As(err, &models.ErrIncorrectType) {
+			fmt.Printf("Metric type incorrect: %q\n", err.Error())
 			return http.StatusBadRequest
-		}
-		service.SaveCounter(name, counterValue)
-	case models.Gauge:
-		gaugeValue, err := strconv.ParseFloat(value, 64)
-		if err != nil {
-			fmt.Printf("Metric gauge incorrect format: %v\n", err)
+		} else if errors.As(err, &models.ErrIncorrectFormat) {
+			fmt.Printf("Metric format incorrect: %q\n", err.Error())
 			return http.StatusBadRequest
+		} else if errors.As(err, &models.ErrSaveMetric) {
+			fmt.Printf("Metric save error: %q\n", err.Error())
+			return http.StatusInternalServerError
 		}
-		service.SaveGauge(name, gaugeValue)
 	}
 
 	fmt.Printf("Metric saved successfully: %q %q %q\n", metricType, name, value)

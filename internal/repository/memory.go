@@ -1,9 +1,7 @@
 package repository
 
 import (
-	"fmt"
 	"slices"
-	"strconv"
 
 	models "github.com/scouser-122/go-metrics/internal/model"
 )
@@ -12,7 +10,7 @@ type MemStorage struct {
 	Metrics []models.Metrics
 }
 
-func (memStorage *MemStorage) SaveCounter(name string, value int64) {
+func (memStorage *MemStorage) SaveCounter(name string, value int64) (bool, error) {
 	index := slices.IndexFunc(memStorage.Metrics, func(m models.Metrics) bool {
 		return m.MType == models.Counter && m.ID == name
 	})
@@ -24,11 +22,13 @@ func (memStorage *MemStorage) SaveCounter(name string, value int64) {
 			MType: models.Counter,
 			Delta: new(int64),
 		}
+		*metric.Delta = value
 		memStorage.Metrics = append(memStorage.Metrics, metric)
 	}
+	return true, nil
 }
 
-func (memStorage *MemStorage) SaveGauge(name string, value float64) {
+func (memStorage *MemStorage) SaveGauge(name string, value float64) (bool, error) {
 	index := slices.IndexFunc(memStorage.Metrics, func(m models.Metrics) bool {
 		return m.MType == models.Gauge && m.ID == name
 	})
@@ -40,24 +40,8 @@ func (memStorage *MemStorage) SaveGauge(name string, value float64) {
 			MType: models.Gauge,
 			Value: new(float64),
 		}
+		*metric.Value = value
 		memStorage.Metrics = append(memStorage.Metrics, metric)
 	}
+	return true, nil
 }
-
-func (memStorage *MemStorage) Print() {
-	fmt.Printf("Metrics: [\n")
-	for i, v := range memStorage.Metrics {
-		var delta = "<nil>"
-		if v.Delta != nil {
-			delta = strconv.FormatInt(*v.Delta, 10)
-		}
-		var value = "<nil>"
-		if v.Value != nil {
-			value = strconv.FormatFloat(*v.Value, 'f', 2, 64)
-		}
-		fmt.Printf("\t%d: %q %q %q %q %q\n", i, v.MType, v.ID, delta, value, v.Hash)
-	}
-	fmt.Printf("]\n")
-}
-
-var MemoryStorage = MemStorage{}

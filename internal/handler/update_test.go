@@ -5,6 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/scouser-122/go-metrics/internal/repository"
+	"github.com/scouser-122/go-metrics/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -137,7 +139,7 @@ var tests = []struct {
 		request: request{
 			method:      http.MethodPost,
 			contentType: "text/plain",
-			path:        "/update/histogram",
+			path:        "/update/histogram/Alloc/10.0",
 		},
 		want: want{
 			code:        http.StatusBadRequest,
@@ -147,13 +149,20 @@ var tests = []struct {
 }
 
 func TestUpdateHandler(t *testing.T) {
+	storage := repository.MemStorage{}
+	service := service.MetricsService{
+		Storage: &storage,
+	}
+	handler := UpdateHandler{
+		Service: service,
+	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			request := httptest.NewRequest(test.request.method, test.request.path, nil)
 			request.Header.Add("Content-Type", test.request.contentType)
 			// создаём новый Recorder
 			w := httptest.NewRecorder()
-			UpdateHandler(w, request)
+			handler.UpdateHandler(w, request)
 
 			res := w.Result()
 			// проверяем код ответа
