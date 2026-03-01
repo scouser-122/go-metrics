@@ -26,14 +26,14 @@ type Metrics struct {
 func (m *Metrics) GetValueAsString() (string, error) {
 	if m.MType == Counter {
 		if m.Delta == nil {
-			return "", errors.New("Absent value for counter")
+			return "", errors.New("absent value for counter")
 		}
 		return strconv.FormatInt(*m.Delta, 10), nil
 	} else if m.MType == Gauge {
 		if m.Value == nil {
-			return "", errors.New("Absent value for gauge")
+			return "", errors.New("absent value for gauge")
 		}
 		return strconv.FormatFloat(*m.Value, 'f', 2, 64), nil
 	}
-	return "", errors.New("Metric type incorrect")
+	return "", errors.New("metric type incorrect")
 }
