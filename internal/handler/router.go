@@ -6,10 +6,11 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func CreateChiRouter(updateHandler http.HandlerFunc, listHandler http.HandlerFunc) *chi.Mux {
+func CreateChiRouter(updateHandler *UpdateHandler, obtainHandler *ObtainHandler) *chi.Mux {
 	r := chi.NewRouter()
-	r.Post("/update/{type}/{name}/{value}", updateHandler)
-	r.Get("/", listHandler)
+	r.Post("/update/{type}/{name}/{value}", updateHandler.UpdateHandler)
+	r.Get("/", obtainHandler.ListHandler)
+	r.Get("/value/{type}/{name}", obtainHandler.GetHandler)
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "text/plain")
 		w.WriteHeader(404)

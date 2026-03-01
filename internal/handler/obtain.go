@@ -1,16 +1,19 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"text/template"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+	models "github.com/scouser-122/go-metrics/internal/model"
 	"github.com/scouser-122/go-metrics/internal/service"
 )
 
-type ListHandler struct {
+type ObtainHandler struct {
 	Service service.MetricsService
 	tmpl    *template.Template
 }
@@ -28,7 +31,7 @@ type PageData struct {
 	LastUpdated string
 }
 
-func (h *ListHandler) CreateTemplate() {
+func (h *ObtainHandler) CreateTemplate() {
 	var err error
 	h.tmpl, err = template.New("page").Funcs(template.FuncMap{
 		"formatTime": func(t time.Time) string {
@@ -104,12 +107,17 @@ func (h *ListHandler) CreateTemplate() {
 	}
 }
 
-func (h *ListHandler) ListHandler(res http.ResponseWriter, req *http.Request) {
+func (h *ObtainHandler) ListHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/html; charset=utf-8")
 	h.processListRequest(res, req)
 }
 
-func (h *ListHandler) processListRequest(res http.ResponseWriter, req *http.Request) {
+func (h *ObtainHandler) GetHandler(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "text/plain")
+	h.processGetRequest(res, req)
+}
+
+func (h *ObtainHandler) processListRequest(res http.ResponseWriter, req *http.Request) {
 	data := PageData{
 		Title:       "Metrics",
 		Subtitle:    "For each metric specified it's type and current value",
@@ -133,4 +141,32 @@ func (h *ListHandler) processListRequest(res http.ResponseWriter, req *http.Requ
 		return
 	}
 	fmt.Printf("Metrics list sent successfully\n")
+}
+
+func (h *ObtainHandler) processGetRequest(res http.ResponseWriter, req *http.Request) {
+	contentType := req.Header.Get("Content-Type")
+	if contentType != "text/plain" {
+		fmt.Printf("Incorrect request content type: %q\n", contentType)
+		res.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	metricType := chi.URLParam(req, "type")
+	name := chi.URLParam(req, "name")
+
+	result, err := h.Service.GetValue(metricType, name)
+	if err != nil {
+		if errors.As(err, &models.ErrIncorrectType) {
+			fmt.Printf("Metric type incorrect: %q\n", err.Error())
+			res.WriteHeader(http.StatusBadRequest)
+		} else if errors.As(err, &models.ErrGetMetric) {
+			fmt.Printf("Can't get metric value: %q\n", err.Error())
+			res.WriteHeader(http.StatusNotFound)
+		}
+		return
+	}
+
+	fmt.Printf("Metric value obtained successfully: %s [%s] %q\n", metricType, name, result)
+	res.WriteHeader(http.StatusOK)
+	res.Write([]byte(result))
 }

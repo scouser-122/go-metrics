@@ -42,13 +42,8 @@ func (h *UpdateHandler) processUpdateRequest(res http.ResponseWriter, req *http.
 			res.WriteHeader(http.StatusBadRequest)
 			return
 		} else if errors.As(err, &models.ErrSaveMetric) {
-			if err.Error() == "Unknown metric" {
-				fmt.Printf("Unknown metric: %q\n", err.Error())
-				res.WriteHeader(http.StatusNotFound)
-			} else {
-				fmt.Printf("Metric save error: %q\n", err.Error())
-				res.WriteHeader(http.StatusInternalServerError)
-			}
+			fmt.Printf("Metric save error: %q\n", err.Error())
+			res.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	}

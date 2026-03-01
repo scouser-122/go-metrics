@@ -54,3 +54,30 @@ func (service *MetricsService) SaveMetric(metricType string, name string, value 
 func (service *MetricsService) GetAllMetrics() []models.Metrics {
 	return service.Storage.GetAllMetrics()
 }
+
+func (service *MetricsService) GetValue(metricType string, name string) (string, error) {
+	var result string
+	if metricType != models.Counter && metricType != models.Gauge {
+		return result, models.IncorrectMetricType{
+			Message: fmt.Sprintf("Metric type incorrect: %q", metricType),
+		}
+	}
+
+	switch metricType {
+	case models.Counter:
+		getResult, err := service.Storage.GetCounter(name)
+		if err != nil {
+			return result, err
+		}
+		result = strconv.FormatInt(getResult, 10)
+
+	case models.Gauge:
+		getResult, err := service.Storage.GetGauge(name)
+		if err != nil {
+			return result, err
+		}
+		result = strconv.FormatFloat(getResult, 'f', 2, 64)
+	}
+
+	return result, nil
+}

@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/scouser-122/go-metrics/internal/config"
 	"github.com/scouser-122/go-metrics/internal/repository"
 	"github.com/scouser-122/go-metrics/internal/service"
 	"github.com/stretchr/testify/assert"
@@ -151,27 +150,12 @@ var updateTests = []struct {
 			contentType: "text/plain",
 		},
 	},
-	{
-		name: "negative test incorrect metric name",
-		request: request{
-			method:      http.MethodPost,
-			contentType: "text/plain",
-			path:        "/update/counter/Alloc/10",
-		},
-		want: want{
-			code:        http.StatusNotFound,
-			contentType: "text/plain",
-		},
-	},
 }
 
 func TestUpdateHandler(t *testing.T) {
 	for _, test := range updateTests {
 		t.Run(test.name, func(t *testing.T) {
-			serverConfig := config.GetDefaultServerConfig()
-
 			memStorage := repository.MemStorage{}
-			memStorage.FillMetrics(&serverConfig)
 
 			metricsService := service.MetricsService{
 				Storage: &memStorage,
@@ -179,11 +163,11 @@ func TestUpdateHandler(t *testing.T) {
 			updateHandler := UpdateHandler{
 				Service: metricsService,
 			}
-			listHandler := ListHandler{
+			obtainHandler := ObtainHandler{
 				Service: metricsService,
 			}
 
-			r := CreateChiRouter(updateHandler.UpdateHandler, listHandler.ListHandler)
+			r := CreateChiRouter(&updateHandler, &obtainHandler)
 
 			request := httptest.NewRequest(test.request.method, test.request.path, nil)
 			request.Header.Add("Content-Type", test.request.contentType)

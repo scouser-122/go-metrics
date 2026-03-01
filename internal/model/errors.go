@@ -24,8 +24,17 @@ func (e MetricSaveError) Error() string {
 	return e.Message
 }
 
+type MetricGetError struct {
+	Message string
+}
+
+func (e MetricGetError) Error() string {
+	return e.Message
+}
+
 var (
 	ErrIncorrectType   = IncorrectMetricType{}
 	ErrIncorrectFormat = MetricFormatError{}
 	ErrSaveMetric      = MetricSaveError{}
+	ErrGetMetric       = MetricGetError{}
 )
