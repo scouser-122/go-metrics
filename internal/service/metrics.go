@@ -45,7 +45,7 @@ func (service *MetricsService) SaveMetric(metricType string, name string, value 
 		saveResult, err = service.Storage.SaveGauge(name, gaugeValue)
 		if err != nil {
 			return false, models.MetricSaveError{
-				Message: fmt.Sprintf("Metric counter save failed: %v\n", err),
+				Message: fmt.Sprintf("Metric gauge save failed: %v\n", err),
 			}
 		}
 	}
