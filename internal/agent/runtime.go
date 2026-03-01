@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/go-resty/resty/v2"
 	models "github.com/scouser-122/go-metrics/internal/model"
 )
 
@@ -81,22 +82,20 @@ func (agent *RuntimeMetricsAgent) CollectMetrics() {
 }
 
 func (agent *RuntimeMetricsAgent) SendMetrics() {
-	var client = http.Client{
-		Timeout: time.Second * 10,
-	}
+	var client = resty.New()
 	for _, key := range agent.runtimeMetrics.SortedKeys {
 		metric := agent.runtimeMetrics.Metrics[key]
-		_, err := agent.SendMetric(&client, metric)
+		metricValue, err := agent.SendMetric(client, metric)
 		if err != nil {
 			fmt.Printf("Error sending metric %q: %s\n", metric.ID, err)
 			continue
 		} else {
-			fmt.Printf("Metric %q sent successfully\n", metric.ID)
+			fmt.Printf("Metric %q sent successfully, value: %s\n", metric.ID, metricValue)
 		}
 	}
 }
 
-func (agent *RuntimeMetricsAgent) SendMetric(client *http.Client, metric *models.Metrics) (bool, error) {
+func (agent *RuntimeMetricsAgent) SendMetric(client *resty.Client, metric *models.Metrics) (string, error) {
 	var metricValue = ""
 	switch metric.MType {
 	case models.Counter:
@@ -112,20 +111,14 @@ func (agent *RuntimeMetricsAgent) SendMetric(client *http.Client, metric *models
 		metric.ID,
 		metricValue,
 	)
-	request, err := http.NewRequest(http.MethodPost, url, nil)
+	resp, err := client.R().SetHeader("Content-Type", "text/plain").Post(url)
 	if err != nil {
-		return false, err
+		return "", err
 	}
-	request.Header.Set("Content-Type", "text/plain")
-	response, err := client.Do(request)
-	if err != nil {
-		return false, err
+	if resp.StatusCode() != http.StatusOK {
+		return "", fmt.Errorf("incorrect response status code: %q", resp.StatusCode())
 	}
-	response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return false, fmt.Errorf("incorrect response status code: %q", response.StatusCode)
-	}
-	return true, nil
+	return string(resp.Body()), nil
 }
 
 func (agent *RuntimeMetricsAgent) CollectAndSendMetricsInLooop() {

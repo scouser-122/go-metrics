@@ -2,29 +2,46 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
+	"github.com/scouser-122/go-metrics/internal/config"
 	"github.com/scouser-122/go-metrics/internal/handler"
 	"github.com/scouser-122/go-metrics/internal/repository"
 	"github.com/scouser-122/go-metrics/internal/service"
 )
 
 func main() {
-	storage := repository.MemStorage{}
+	serverConfig := config.GetDefaultServerConfig()
+
+	memStorage := repository.MemStorage{}
+	memStorage.FillMetrics(&serverConfig)
+
 	service := service.MetricsService{
-		Storage: &storage,
+		Storage: &memStorage,
 	}
-	handler := handler.UpdateHandler{
+
+	metricsHandler := handler.UpdateHandler{
 		Service: service,
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/update", handler.UpdateHandler)
-	mux.HandleFunc("/update/", handler.UpdateHandler)
+	listHandler := handler.ListHandler{
+		Service: service,
+	}
+	listHandler.CreateTemplate()
+
+	// mux := http.NewServeMux()
+	// mux.HandleFunc("/update", handler.UpdateHandler)
+	// mux.HandleFunc("/update/", handler.UpdateHandler)
+
+	// fmt.Println("Starting server on http://localhost:8080")
+	// err := http.ListenAndServe(`:8080`, mux)
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	r := handler.CreateChiRouter(metricsHandler.UpdateHandler, listHandler.ListHandler)
 
 	fmt.Println("Starting server on http://localhost:8080")
-	err := http.ListenAndServe(`:8080`, mux)
-	if err != nil {
-		panic(err)
-	}
+	log.Fatal(http.ListenAndServe(":8080", r))
 }

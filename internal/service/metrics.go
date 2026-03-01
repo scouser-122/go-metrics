@@ -30,9 +30,7 @@ func (service *MetricsService) SaveMetric(metricType string, name string, value 
 		}
 		saveResult, err := service.Storage.SaveCounter(name, counterValue)
 		if err != nil {
-			return result, models.MetricSaveError{
-				Message: fmt.Sprintf("Metric counter save failed: %v\n", err),
-			}
+			return result, err
 		}
 		result = strconv.FormatInt(saveResult, 10)
 
@@ -45,12 +43,14 @@ func (service *MetricsService) SaveMetric(metricType string, name string, value 
 		}
 		saveResult, err := service.Storage.SaveGauge(name, gaugeValue)
 		if err != nil {
-			return result, models.MetricSaveError{
-				Message: fmt.Sprintf("Metric gauge save failed: %v\n", err),
-			}
+			return result, err
 		}
 		result = strconv.FormatFloat(saveResult, 'f', 2, 64)
 	}
 
 	return result, nil
+}
+
+func (service *MetricsService) GetAllMetrics() []models.Metrics {
+	return service.Storage.GetAllMetrics()
 }

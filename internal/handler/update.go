@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 
+	"github.com/go-chi/chi/v5"
 	models "github.com/scouser-122/go-metrics/internal/model"
 	"github.com/scouser-122/go-metrics/internal/service"
 )
@@ -20,12 +20,6 @@ func (h *UpdateHandler) UpdateHandler(res http.ResponseWriter, req *http.Request
 }
 
 func (h *UpdateHandler) processUpdateRequest(res http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		fmt.Printf("Incorrect request method: %q\n", req.Method)
-		res.WriteHeader(http.StatusNotFound)
-		return
-	}
-
 	contentType := req.Header.Get("Content-Type")
 	if contentType != "text/plain" {
 		fmt.Printf("Incorrect request content type: %q\n", contentType)
@@ -33,32 +27,9 @@ func (h *UpdateHandler) processUpdateRequest(res http.ResponseWriter, req *http.
 		return
 	}
 
-	fullPath := req.URL.Path
-	pathSegments := strings.Split(fullPath, "/")
-
-	if len(pathSegments) < 3 {
-		fmt.Printf("Metric type not specified\n")
-		res.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	metricType := pathSegments[2]
-
-	if len(pathSegments) < 4 {
-		fmt.Printf("Metric name not specified\n")
-		res.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	name := pathSegments[3]
-
-	if len(pathSegments) < 5 {
-		fmt.Printf("Metric value not specified\n")
-		res.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	value := pathSegments[4]
+	metricType := chi.URLParam(req, "type")
+	name := chi.URLParam(req, "name")
+	value := chi.URLParam(req, "value")
 
 	result, err := h.Service.SaveMetric(metricType, name, value)
 	if err != nil {
@@ -71,8 +42,13 @@ func (h *UpdateHandler) processUpdateRequest(res http.ResponseWriter, req *http.
 			res.WriteHeader(http.StatusBadRequest)
 			return
 		} else if errors.As(err, &models.ErrSaveMetric) {
-			fmt.Printf("Metric save error: %q\n", err.Error())
-			res.WriteHeader(http.StatusInternalServerError)
+			if err.Error() == "Unknown metric" {
+				fmt.Printf("Unknown metric: %q\n", err.Error())
+				res.WriteHeader(http.StatusNotFound)
+			} else {
+				fmt.Printf("Metric save error: %q\n", err.Error())
+				res.WriteHeader(http.StatusInternalServerError)
+			}
 			return
 		}
 	}
