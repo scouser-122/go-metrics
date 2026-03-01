@@ -1,7 +1,12 @@
 package main
 
-import runtime "github.com/scouser-122/go-metrics/internal/agent"
+import (
+	"github.com/scouser-122/go-metrics/internal/agent"
+)
 
 func main() {
-	runtime.CollectAndSendMetricsInLooop()
+	agent := agent.RuntimeMetricsAgent{
+		Config: agent.GetDefaultAgentConfig(),
+	}
+	agent.CollectAndSendMetricsInLooop()
 }

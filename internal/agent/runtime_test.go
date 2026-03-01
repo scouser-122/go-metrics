@@ -19,18 +19,19 @@ func TestFillMetricsModel(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var testRuntimeMetricNames = []string{
-				"Alloc",
-				"BuckHashSys",
-				"Frees",
-				"TotalAlloc",
+			agent := RuntimeMetricsAgent{
+				Config: AgentConfig{
+					runtimeMetricNames: []string{
+						"Alloc",
+						"BuckHashSys",
+						"Frees",
+						"TotalAlloc",
+					},
+				},
 			}
-			var runtimeMetrics = RuntimeMetircs{
-				Metrics: make(map[string]*models.Metrics),
-			}
-			FillMetricsModel(&runtimeMetrics, testRuntimeMetricNames)
+			agent.FillMetricsModel()
 
-			assert.Equal(t, 6, len(runtimeMetrics.Metrics))
+			assert.Equal(t, 6, len(agent.runtimeMetrics.Metrics))
 			assert.Equal(
 				t,
 				[]string{
@@ -41,20 +42,20 @@ func TestFillMetricsModel(t *testing.T) {
 					"RandomValue",
 					"TotalAlloc",
 				},
-				runtimeMetrics.SortedKeys,
+				agent.runtimeMetrics.SortedKeys,
 			)
-			assert.NotNil(t, runtimeMetrics.Metrics["Alloc"])
-			assert.Equal(t, float64(0.0), *runtimeMetrics.Metrics["Alloc"].Value)
-			assert.NotNil(t, runtimeMetrics.Metrics["BuckHashSys"])
-			assert.Equal(t, float64(0.0), *runtimeMetrics.Metrics["BuckHashSys"].Value)
-			assert.NotNil(t, runtimeMetrics.Metrics["Frees"])
-			assert.Equal(t, float64(0.0), *runtimeMetrics.Metrics["Frees"].Value)
-			assert.NotNil(t, runtimeMetrics.Metrics["TotalAlloc"])
-			assert.Equal(t, float64(0.0), *runtimeMetrics.Metrics["TotalAlloc"].Value)
-			assert.NotNil(t, runtimeMetrics.Metrics["PollCount"])
-			assert.Equal(t, int64(0.0), *runtimeMetrics.Metrics["PollCount"].Delta)
-			assert.NotNil(t, runtimeMetrics.Metrics["RandomValue"])
-			assert.Equal(t, float64(0.0), *runtimeMetrics.Metrics["RandomValue"].Value)
+			assert.NotNil(t, agent.runtimeMetrics.Metrics["Alloc"])
+			assert.Equal(t, float64(0.0), *agent.runtimeMetrics.Metrics["Alloc"].Value)
+			assert.NotNil(t, agent.runtimeMetrics.Metrics["BuckHashSys"])
+			assert.Equal(t, float64(0.0), *agent.runtimeMetrics.Metrics["BuckHashSys"].Value)
+			assert.NotNil(t, agent.runtimeMetrics.Metrics["Frees"])
+			assert.Equal(t, float64(0.0), *agent.runtimeMetrics.Metrics["Frees"].Value)
+			assert.NotNil(t, agent.runtimeMetrics.Metrics["TotalAlloc"])
+			assert.Equal(t, float64(0.0), *agent.runtimeMetrics.Metrics["TotalAlloc"].Value)
+			assert.NotNil(t, agent.runtimeMetrics.Metrics["PollCount"])
+			assert.Equal(t, int64(0.0), *agent.runtimeMetrics.Metrics["PollCount"].Delta)
+			assert.NotNil(t, agent.runtimeMetrics.Metrics["RandomValue"])
+			assert.Equal(t, float64(0.0), *agent.runtimeMetrics.Metrics["RandomValue"].Value)
 		})
 	}
 }
@@ -67,48 +68,19 @@ func TestCollectMetrics(t *testing.T) {
 			name: "collect runtime metrics",
 		},
 	}
-	var testRuntimeMetricNames = []string{
-		"Alloc",
-		"BuckHashSys",
-		"Frees",
-		"GCCPUFraction",
-		"GCSys",
-		"HeapAlloc",
-		"HeapIdle",
-		"HeapInuse",
-		"HeapObjects",
-		"HeapReleased",
-		"HeapSys",
-		"LastGC",
-		"Lookups",
-		"MCacheInuse",
-		"MCacheSys",
-		"MSpanInuse",
-		"MSpanSys",
-		"Mallocs",
-		"NextGC",
-		"NumForcedGC",
-		"NumGC",
-		"OtherSys",
-		"PauseTotalNs",
-		"StackInuse",
-		"StackSys",
-		"Sys",
-		"TotalAlloc",
+	agent := RuntimeMetricsAgent{
+		Config: GetDefaultAgentConfig(),
 	}
-	var runtimeMetrics = RuntimeMetircs{
-		Metrics: make(map[string]*models.Metrics),
-	}
-	FillMetricsModel(&runtimeMetrics, testRuntimeMetricNames)
+	agent.FillMetricsModel()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			CollectMetrics(&runtimeMetrics)
-			for _, metricName := range testRuntimeMetricNames {
-				assert.True(t, *runtimeMetrics.Metrics[metricName].Value >= 0.0)
+			agent.CollectMetrics()
+			for _, metricName := range agent.Config.runtimeMetricNames {
+				assert.True(t, *agent.runtimeMetrics.Metrics[metricName].Value >= 0.0)
 			}
-			assert.Equal(t, int64(1), *runtimeMetrics.Metrics["PollCount"].Delta)
-			assert.True(t, *runtimeMetrics.Metrics["RandomValue"].Value >= 0.0)
-			assert.True(t, *runtimeMetrics.Metrics["RandomValue"].Value <= 1.0)
+			assert.Equal(t, int64(1), *agent.runtimeMetrics.Metrics["PollCount"].Delta)
+			assert.True(t, *agent.runtimeMetrics.Metrics["RandomValue"].Value >= 0.0)
+			assert.True(t, *agent.runtimeMetrics.Metrics["RandomValue"].Value <= 1.0)
 		})
 	}
 }
@@ -196,6 +168,9 @@ func TestSendMetric(t *testing.T) {
 			},
 		},
 	}
+	agent := RuntimeMetricsAgent{
+		Config: GetDefaultAgentConfig(),
+	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// Mock the RoundTrip function to return a specific response
@@ -212,7 +187,7 @@ func TestSendMetric(t *testing.T) {
 			// Create a client with the mock transport
 			client := NewMockClient(mockRoundTripper)
 
-			result, err := SendMetric(client, &test.metric)
+			result, err := agent.SendMetric(client, &test.metric)
 			assert.Equal(t, test.want.result, result)
 			if test.want.errNotNil {
 				assert.NotNil(t, err)
