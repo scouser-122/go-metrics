@@ -1,0 +1,165 @@
+package handler
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+type want struct {
+	code        int
+	contentType string
+}
+
+type request struct {
+	method      string
+	contentType string
+	path        string
+}
+
+var tests = []struct {
+	name    string
+	request request
+	want    want
+}{
+	{
+		name: "positive test gauge",
+		request: request{
+			method:      http.MethodPost,
+			contentType: "text/plain",
+			path:        "/update/gauge/Alloc/120.50",
+		},
+		want: want{
+			code:        http.StatusOK,
+			contentType: "text/plain",
+		},
+	},
+	{
+		name: "positive test counter",
+		request: request{
+			method:      http.MethodPost,
+			contentType: "text/plain",
+			path:        "/update/counter/PollCount/10",
+		},
+		want: want{
+			code:        http.StatusOK,
+			contentType: "text/plain",
+		},
+	},
+	{
+		name: "negative test gauge format",
+		request: request{
+			method:      http.MethodPost,
+			contentType: "text/plain",
+			path:        "/update/gauge/Alloc/t23",
+		},
+		want: want{
+			code:        http.StatusBadRequest,
+			contentType: "text/plain",
+		},
+	},
+	{
+		name: "negative test counter format",
+		request: request{
+			method:      http.MethodPost,
+			contentType: "text/plain",
+			path:        "/update/counter/PollCount/t23",
+		},
+		want: want{
+			code:        http.StatusBadRequest,
+			contentType: "text/plain",
+		},
+	},
+	{
+		name: "negative test incorrect method",
+		request: request{
+			method:      http.MethodGet,
+			contentType: "text/plain",
+			path:        "/update/counter/PollCount/10",
+		},
+		want: want{
+			code:        http.StatusNotFound,
+			contentType: "text/plain",
+		},
+	},
+	{
+		name: "negative test incorrect content type",
+		request: request{
+			method:      http.MethodPost,
+			contentType: "appilcation/json",
+			path:        "/update/counter/PollCount/10",
+		},
+		want: want{
+			code:        http.StatusNotFound,
+			contentType: "text/plain",
+		},
+	},
+	{
+		name: "negative test missing value",
+		request: request{
+			method:      http.MethodPost,
+			contentType: "text/plain",
+			path:        "/update/counter/PollCount",
+		},
+		want: want{
+			code:        http.StatusNotFound,
+			contentType: "text/plain",
+		},
+	},
+	{
+		name: "negative test missing metric name",
+		request: request{
+			method:      http.MethodPost,
+			contentType: "text/plain",
+			path:        "/update/counter",
+		},
+		want: want{
+			code:        http.StatusNotFound,
+			contentType: "text/plain",
+		},
+	},
+	{
+		name: "negative test missing metric type",
+		request: request{
+			method:      http.MethodPost,
+			contentType: "text/plain",
+			path:        "/update",
+		},
+		want: want{
+			code:        http.StatusNotFound,
+			contentType: "text/plain",
+		},
+	},
+	{
+		name: "negative test incorrect metric type",
+		request: request{
+			method:      http.MethodPost,
+			contentType: "text/plain",
+			path:        "/update/histogram",
+		},
+		want: want{
+			code:        http.StatusBadRequest,
+			contentType: "text/plain",
+		},
+	},
+}
+
+func TestUpdateHandler(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(test.request.method, test.request.path, nil)
+			request.Header.Add("Content-Type", test.request.contentType)
+			// создаём новый Recorder
+			w := httptest.NewRecorder()
+			UpdateHandler(w, request)
+
+			res := w.Result()
+			// проверяем код ответа
+			assert.Equal(t, test.want.code, res.StatusCode)
+			assert.Equal(t, test.want.contentType, res.Header.Get("Content-Type"))
+			res.Body.Close()
+		})
+	}
+}
