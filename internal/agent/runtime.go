@@ -166,7 +166,7 @@ func SendMetric(client *http.Client, metric *models.Metrics) (bool, error) {
 	}
 	response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return false, fmt.Errorf("Incorrect response status code: %q", response.StatusCode)
+		return false, fmt.Errorf("incorrect response status code: %q", response.StatusCode)
 	}
 	return true, nil
 }
