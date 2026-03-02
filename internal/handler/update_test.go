@@ -91,18 +91,6 @@ var updateTests = []struct {
 		},
 	},
 	{
-		name: "negative test incorrect content type",
-		request: request{
-			method:      http.MethodPost,
-			contentType: "appilcation/json",
-			path:        "/update/counter/PollCount/10",
-		},
-		want: want{
-			code:        http.StatusNotFound,
-			contentType: "text/plain",
-		},
-	},
-	{
 		name: "negative test missing value",
 		request: request{
 			method:      http.MethodPost,

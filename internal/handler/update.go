@@ -20,13 +20,6 @@ func (h *UpdateHandler) UpdateHandler(res http.ResponseWriter, req *http.Request
 }
 
 func (h *UpdateHandler) processUpdateRequest(res http.ResponseWriter, req *http.Request) {
-	contentType := req.Header.Get("Content-Type")
-	if contentType != "text/plain" {
-		fmt.Printf("Incorrect request content type: %q\n", contentType)
-		res.WriteHeader(http.StatusNotFound)
-		return
-	}
-
 	metricType := chi.URLParam(req, "type")
 	name := chi.URLParam(req, "name")
 	value := chi.URLParam(req, "value")
