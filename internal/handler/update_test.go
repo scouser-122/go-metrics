@@ -38,7 +38,7 @@ var updateTests = []struct {
 		want: want{
 			code:        http.StatusOK,
 			contentType: "text/plain",
-			body:        "120.50",
+			body:        "120.5",
 		},
 	},
 	{

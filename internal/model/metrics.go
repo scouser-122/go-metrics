@@ -33,7 +33,7 @@ func (m *Metrics) GetValueAsString() (string, error) {
 		if m.Value == nil {
 			return "", errors.New("absent value for gauge")
 		}
-		return strconv.FormatFloat(*m.Value, 'f', 2, 64), nil
+		return strconv.FormatFloat(*m.Value, 'f', -1, 64), nil
 	}
 	return "", errors.New("metric type incorrect")
 }

@@ -45,7 +45,7 @@ func (service *MetricsService) SaveMetric(metricType string, name string, value 
 		if err != nil {
 			return result, err
 		}
-		result = strconv.FormatFloat(saveResult, 'f', 2, 64)
+		result = strconv.FormatFloat(saveResult, 'f', -1, 64)
 	}
 
 	return result, nil
@@ -76,7 +76,7 @@ func (service *MetricsService) GetValue(metricType string, name string) (string,
 		if err != nil {
 			return result, err
 		}
-		result = strconv.FormatFloat(getResult, 'f', 2, 64)
+		result = strconv.FormatFloat(getResult, 'f', -1, 64)
 	}
 
 	return result, nil
