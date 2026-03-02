@@ -20,7 +20,7 @@ func main() {
 	updateHandler := handler.UpdateHandler{
 		Service: metricsService,
 	}
-	obtainHandler := handler.ObtainHandler{
+	obtainHandler := handler.ReadHandler{
 		Service: metricsService,
 	}
 	obtainHandler.CreateTemplate()

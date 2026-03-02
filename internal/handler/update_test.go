@@ -163,7 +163,7 @@ func TestUpdateHandler(t *testing.T) {
 			updateHandler := UpdateHandler{
 				Service: metricsService,
 			}
-			obtainHandler := ObtainHandler{
+			obtainHandler := ReadHandler{
 				Service: metricsService,
 			}
 

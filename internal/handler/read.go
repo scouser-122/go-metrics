@@ -13,7 +13,7 @@ import (
 	"github.com/scouser-122/go-metrics/internal/service"
 )
 
-type ObtainHandler struct {
+type ReadHandler struct {
 	Service service.MetricsService
 	tmpl    *template.Template
 }
@@ -31,7 +31,7 @@ type PageData struct {
 	LastUpdated string
 }
 
-func (h *ObtainHandler) CreateTemplate() {
+func (h *ReadHandler) CreateTemplate() {
 	var err error
 	h.tmpl, err = template.New("page").Funcs(template.FuncMap{
 		"formatTime": func(t time.Time) string {
@@ -107,17 +107,17 @@ func (h *ObtainHandler) CreateTemplate() {
 	}
 }
 
-func (h *ObtainHandler) ListHandler(res http.ResponseWriter, req *http.Request) {
+func (h *ReadHandler) ListHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/html; charset=utf-8")
 	h.processListRequest(res, req)
 }
 
-func (h *ObtainHandler) GetHandler(res http.ResponseWriter, req *http.Request) {
+func (h *ReadHandler) GetHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/plain")
 	h.processGetRequest(res, req)
 }
 
-func (h *ObtainHandler) processListRequest(res http.ResponseWriter, req *http.Request) {
+func (h *ReadHandler) processListRequest(res http.ResponseWriter, req *http.Request) {
 	data := PageData{
 		Title:       "Metrics",
 		Subtitle:    "For each metric specified it's type and current value",
@@ -143,14 +143,7 @@ func (h *ObtainHandler) processListRequest(res http.ResponseWriter, req *http.Re
 	fmt.Printf("Metrics list sent successfully\n")
 }
 
-func (h *ObtainHandler) processGetRequest(res http.ResponseWriter, req *http.Request) {
-	contentType := req.Header.Get("Content-Type")
-	if contentType != "text/plain" {
-		fmt.Printf("Incorrect request content type: %q\n", contentType)
-		res.WriteHeader(http.StatusNotFound)
-		return
-	}
-
+func (h *ReadHandler) processGetRequest(res http.ResponseWriter, req *http.Request) {
 	metricType := chi.URLParam(req, "type")
 	name := chi.URLParam(req, "name")
 

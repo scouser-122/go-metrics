@@ -6,7 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func CreateChiRouter(updateHandler *UpdateHandler, obtainHandler *ObtainHandler) *chi.Mux {
+func CreateChiRouter(updateHandler *UpdateHandler, obtainHandler *ReadHandler) *chi.Mux {
 	r := chi.NewRouter()
 	r.Post("/update/{type}/{name}/{value}", updateHandler.UpdateHandler)
 	r.Get("/", obtainHandler.ListHandler)
