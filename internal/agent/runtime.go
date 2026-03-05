@@ -120,6 +120,7 @@ func (agent *RuntimeMetricsAgent) SendMetrics() {
 	agent.reads <- ReadRequest{resp: respChan}
 	metrics := <-respChan
 
+	successSentCount := 0
 	for _, metric := range metrics {
 		metricValue, err := agent.SendMetric(client, &metric)
 		if err != nil {
@@ -127,9 +128,10 @@ func (agent *RuntimeMetricsAgent) SendMetrics() {
 			continue
 		} else {
 			fmt.Printf("Metric %q sent successfully, value: %s\n", metric.ID, metricValue)
+			successSentCount++
 		}
 	}
-	fmt.Printf("Successfully sent %d metrics\n", len(metrics))
+	fmt.Printf("Successfully sent %d metrics\n", successSentCount)
 
 }
 
@@ -150,9 +152,6 @@ func (agent *RuntimeMetricsAgent) SendMetric(client *resty.Client, metric *model
 		metricValue,
 	)
 	resp, err := client.R().SetHeader("Content-Type", "text/plain").Post(url)
-	if metric.MType == models.Counter {
-		fmt.Printf("Counter %s, value: %s, url: %s\n", metric.ID, metricValue, url)
-	}
 	if err != nil {
 		return "", err
 	}
