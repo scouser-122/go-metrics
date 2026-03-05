@@ -27,6 +27,8 @@ func main() {
 
 	r := handler.CreateChiRouter(&updateHandler, &obtainHandler)
 
-	fmt.Println("Starting server on http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	parseFlags()
+
+	fmt.Printf("Starting server on http://%s\n", flagRunAddr)
+	log.Fatal(http.ListenAndServe(flagRunAddr, r))
 }

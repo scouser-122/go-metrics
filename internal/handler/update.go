@@ -41,7 +41,7 @@ func (h *UpdateHandler) processUpdateRequest(res http.ResponseWriter, req *http.
 		}
 	}
 
-	fmt.Printf("Metric saved successfully: %q %q %q\n", metricType, name, value)
+	fmt.Printf("Metric saved successfully: %q %q %s\n", metricType, name, value)
 	res.WriteHeader(http.StatusOK)
 	res.Write([]byte(result))
 }

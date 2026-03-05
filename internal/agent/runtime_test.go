@@ -10,57 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFillMetricsModel(t *testing.T) {
-	tests := []struct {
-		name string
-	}{
-		{
-			name: "fill metrics map",
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			agent := RuntimeMetricsAgent{
-				Config: AgentConfig{
-					runtimeMetricNames: []string{
-						"Alloc",
-						"BuckHashSys",
-						"Frees",
-						"TotalAlloc",
-					},
-				},
-			}
-			agent.FillMetricsModel()
-
-			assert.Equal(t, 6, len(agent.runtimeMetrics.Metrics))
-			assert.Equal(
-				t,
-				[]string{
-					"Alloc",
-					"BuckHashSys",
-					"Frees",
-					"PollCount",
-					"RandomValue",
-					"TotalAlloc",
-				},
-				agent.runtimeMetrics.SortedKeys,
-			)
-			assert.NotNil(t, agent.runtimeMetrics.Metrics["Alloc"])
-			assert.Equal(t, float64(0.0), *agent.runtimeMetrics.Metrics["Alloc"].Value)
-			assert.NotNil(t, agent.runtimeMetrics.Metrics["BuckHashSys"])
-			assert.Equal(t, float64(0.0), *agent.runtimeMetrics.Metrics["BuckHashSys"].Value)
-			assert.NotNil(t, agent.runtimeMetrics.Metrics["Frees"])
-			assert.Equal(t, float64(0.0), *agent.runtimeMetrics.Metrics["Frees"].Value)
-			assert.NotNil(t, agent.runtimeMetrics.Metrics["TotalAlloc"])
-			assert.Equal(t, float64(0.0), *agent.runtimeMetrics.Metrics["TotalAlloc"].Value)
-			assert.NotNil(t, agent.runtimeMetrics.Metrics["PollCount"])
-			assert.Equal(t, int64(0.0), *agent.runtimeMetrics.Metrics["PollCount"].Delta)
-			assert.NotNil(t, agent.runtimeMetrics.Metrics["RandomValue"])
-			assert.Equal(t, float64(0.0), *agent.runtimeMetrics.Metrics["RandomValue"].Value)
-		})
-	}
-}
-
 func TestCollectMetrics(t *testing.T) {
 	tests := []struct {
 		name string
@@ -72,16 +21,27 @@ func TestCollectMetrics(t *testing.T) {
 	agent := RuntimeMetricsAgent{
 		Config: GetDefaultAgentConfig(),
 	}
-	agent.FillMetricsModel()
+	agent.Init()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			agent.CollectMetrics()
-			for _, metricName := range agent.Config.runtimeMetricNames {
-				assert.True(t, *agent.runtimeMetrics.Metrics[metricName].Value >= 0.0)
+
+			respChan := make(chan []models.Metrics)
+			agent.reads <- ReadRequest{resp: respChan}
+			metrics := <-respChan
+
+			for _, m := range metrics {
+				if m.MType == models.Gauge {
+					assert.True(t, *m.Value >= 0.0)
+				}
+				if m.ID == "PollCount" {
+					assert.Equal(t, int64(1), *m.Delta)
+				}
+				if m.ID == "RandomValue" {
+					assert.True(t, *m.Value >= 0.0)
+					assert.True(t, *m.Value <= 1.0)
+				}
 			}
-			assert.Equal(t, int64(1), *agent.runtimeMetrics.Metrics["PollCount"].Delta)
-			assert.True(t, *agent.runtimeMetrics.Metrics["RandomValue"].Value >= 0.0)
-			assert.True(t, *agent.runtimeMetrics.Metrics["RandomValue"].Value <= 1.0)
 		})
 	}
 }
@@ -156,7 +116,7 @@ func TestSendMetric(t *testing.T) {
 			defer server.Close()
 
 			client := resty.New()
-			agent.Config.serverAddress = server.URL
+			agent.Config.ServerAddress = server.URL
 
 			result, err := agent.SendMetric(client, &test.metric)
 			assert.Equal(t, test.want.result, result)

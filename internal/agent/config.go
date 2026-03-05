@@ -1,11 +1,10 @@
 package agent
 
-import "time"
-
 type AgentConfig struct {
 	runtimeMetricNames []string
-	serverAddress      string
-	pollInterval       time.Duration
+	ServerAddress      string
+	ReportInterval     int
+	PollInterval       int
 }
 
 func GetDefaultAgentConfig() AgentConfig {
@@ -39,7 +38,8 @@ func GetDefaultAgentConfig() AgentConfig {
 		"Sys",
 		"TotalAlloc",
 	}
-	config.serverAddress = "http://localhost:8080"
-	config.pollInterval = 2 * time.Second
+	config.ServerAddress = "http://localhost:8080"
+	config.PollInterval = 2
+	config.ReportInterval = 10
 	return config
 }
