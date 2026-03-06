@@ -13,7 +13,7 @@ func main() {
 	agent := agent.RuntimeMetricsAgent{
 		Config: config,
 	}
-	agent.CollectAndSendMetricsInLooop()
+	agent.CollectAndSendMetricsInLoop()
 }
 
 func parseFlags(agentConfig *agent.AgentConfig) {

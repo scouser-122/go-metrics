@@ -86,7 +86,7 @@ var updateTests = []struct {
 			path:        "/update/counter/PollCount/10",
 		},
 		want: want{
-			code:        http.StatusNotFound,
+			code:        http.StatusMethodNotAllowed,
 			contentType: "text/plain",
 		},
 	},

@@ -57,7 +57,6 @@ func (agent *RuntimeMetricsAgent) CollectMetrics() {
 
 	runtimeMetrics := make(map[string]float64)
 	runtimeMetrics["Alloc"] = float64(m.Alloc)
-	runtimeMetrics["TotalAlloc"] = float64(m.TotalAlloc)
 	runtimeMetrics["BuckHashSys"] = float64(m.BuckHashSys)
 	runtimeMetrics["Frees"] = float64(m.Frees)
 	runtimeMetrics["GCCPUFraction"] = float64(m.GCCPUFraction)
@@ -161,7 +160,7 @@ func (agent *RuntimeMetricsAgent) SendMetric(client *resty.Client, metric *model
 	return string(resp.Body()), nil
 }
 
-func (agent *RuntimeMetricsAgent) CollectAndSendMetricsInLooop() {
+func (agent *RuntimeMetricsAgent) CollectAndSendMetricsInLoop() {
 	fmt.Println("Start collecting metrics")
 	agent.Init()
 
