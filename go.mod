@@ -7,7 +7,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 )
 
-require golang.org/x/net v0.43.0 // indirect
+require golang.org/x/net v0.52.0 // indirect
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
