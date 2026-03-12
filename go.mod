@@ -2,7 +2,10 @@ module github.com/scouser-122/go-metrics
 
 go 1.24.13
 
-require github.com/stretchr/testify v1.11.1
+require (
+	github.com/caarlos0/env/v6 v6.10.1
+	github.com/stretchr/testify v1.11.1
+)
 
 require golang.org/x/net v0.43.0 // indirect
 

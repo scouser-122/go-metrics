@@ -2,14 +2,16 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"log"
 
+	"github.com/caarlos0/env/v6"
 	"github.com/scouser-122/go-metrics/internal/agent"
 )
 
 func main() {
 	config := agent.GetDefaultAgentConfig()
 	parseFlags(&config)
+	parseEnvVariables(&config)
 	agent := agent.RuntimeMetricsAgent{
 		Config: config,
 	}
@@ -17,10 +19,17 @@ func main() {
 }
 
 func parseFlags(agentConfig *agent.AgentConfig) {
-	serverAddress := ""
-	flag.StringVar(&serverAddress, "a", "localhost:8080", "server address in format host:port")
+	flag.StringVar(&agentConfig.ServerAddress, "a", "localhost:8080", "server address in format host:port")
 	flag.IntVar(&agentConfig.ReportInterval, "r", 10, "metrics report interval in seconds")
 	flag.IntVar(&agentConfig.PollInterval, "p", 2, "metrics poll interval in seconds")
 	flag.Parse()
-	agentConfig.ServerAddress = fmt.Sprintf("http://%s", serverAddress)
+	agentConfig.CheckAndCorrectServerAddress()
+}
+
+func parseEnvVariables(agentConfig *agent.AgentConfig) {
+	err := env.Parse(agentConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+	agentConfig.CheckAndCorrectServerAddress()
 }

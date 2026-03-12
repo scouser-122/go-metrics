@@ -28,6 +28,7 @@ func main() {
 	r := handler.CreateChiRouter(&updateHandler, &obtainHandler)
 
 	parseFlags()
+	parseEnvVariables()
 
 	fmt.Printf("Starting server on http://%s\n", flagRunAddr)
 	log.Fatal(http.ListenAndServe(flagRunAddr, r))

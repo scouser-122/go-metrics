@@ -1,10 +1,15 @@
 package agent
 
+import (
+	"fmt"
+	"strings"
+)
+
 type AgentConfig struct {
 	runtimeMetricNames []string
-	ServerAddress      string
-	ReportInterval     int
-	PollInterval       int
+	ServerAddress      string `env:"ADDRESS"`
+	ReportInterval     int    `env:"REPORT_INTERVAL"`
+	PollInterval       int    `env:"POLL_INTERVAL"`
 }
 
 func GetDefaultAgentConfig() AgentConfig {
@@ -42,4 +47,10 @@ func GetDefaultAgentConfig() AgentConfig {
 	config.PollInterval = 2
 	config.ReportInterval = 10
 	return config
+}
+
+func (agentConfig *AgentConfig) CheckAndCorrectServerAddress() {
+	if !strings.Contains(agentConfig.ServerAddress, "http") {
+		agentConfig.ServerAddress = fmt.Sprintf("http://%s", agentConfig.ServerAddress)
+	}
 }
