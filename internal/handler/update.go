@@ -11,7 +11,7 @@ import (
 )
 
 type UpdateHandler struct {
-	Service service.MetricsService
+	Service *service.MetricsService
 }
 
 func (h *UpdateHandler) UpdateHandler(res http.ResponseWriter, req *http.Request) {

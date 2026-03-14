@@ -14,7 +14,7 @@ import (
 )
 
 type ReadHandler struct {
-	Service service.MetricsService
+	Service *service.MetricsService
 	tmpl    *template.Template
 }
 
