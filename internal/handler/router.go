@@ -12,9 +12,9 @@ func CreateChiRouter(handlers *[]Handler) *chi.Mux {
 	for _, h := range *handlers {
 		switch h.Method {
 		case http.MethodGet:
-			r.Get(h.UrlPathPattern, RequestLogger(h.HandlerFn))
+			r.Get(h.URLPathPattern, RequestLogger(h.HandlerFn))
 		case http.MethodPost:
-			r.Post(h.UrlPathPattern, RequestLogger(h.HandlerFn))
+			r.Post(h.URLPathPattern, RequestLogger(h.HandlerFn))
 		default:
 			logger.Log.Sugar().Errorf("Provided unsupported request handler method: %q", h)
 		}

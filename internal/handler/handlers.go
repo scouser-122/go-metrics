@@ -9,7 +9,7 @@ import (
 type Handler struct {
 	Name           string
 	Method         string
-	UrlPathPattern string
+	URLPathPattern string
 	HandlerFn      http.HandlerFunc
 }
 
@@ -22,7 +22,7 @@ func InitializeHandlers(service *service.MetricsService) []Handler {
 	handlers = append(handlers, Handler{
 		Name:           "metric update",
 		Method:         http.MethodPost,
-		UrlPathPattern: "/update/{type}/{name}/{value}",
+		URLPathPattern: "/update/{type}/{name}/{value}",
 		HandlerFn:      updateHandler.UpdateHandler,
 	})
 
@@ -33,13 +33,13 @@ func InitializeHandlers(service *service.MetricsService) []Handler {
 	handlers = append(handlers, Handler{
 		Name:           "metrics list",
 		Method:         http.MethodGet,
-		UrlPathPattern: "/",
+		URLPathPattern: "/",
 		HandlerFn:      readHandler.ListHandler,
 	})
 	handlers = append(handlers, Handler{
 		Name:           "metrics list",
 		Method:         http.MethodGet,
-		UrlPathPattern: "/value/{type}/{name}",
+		URLPathPattern: "/value/{type}/{name}",
 		HandlerFn:      readHandler.GetHandler,
 	})
 
