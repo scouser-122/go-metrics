@@ -7,10 +7,10 @@ import (
 )
 
 type Handler struct {
-	Name      string
-	Method    string
-	UrlPath   string
-	HandlerFn http.HandlerFunc
+	Name           string
+	Method         string
+	UrlPathPattern string
+	HandlerFn      http.HandlerFunc
 }
 
 func InitializeHandlers(service *service.MetricsService) []Handler {
@@ -20,10 +20,10 @@ func InitializeHandlers(service *service.MetricsService) []Handler {
 		Service: service,
 	}
 	handlers = append(handlers, Handler{
-		Name:      "metric update",
-		Method:    http.MethodPost,
-		UrlPath:   "/update/{type}/{name}/{value}",
-		HandlerFn: updateHandler.UpdateHandler,
+		Name:           "metric update",
+		Method:         http.MethodPost,
+		UrlPathPattern: "/update/{type}/{name}/{value}",
+		HandlerFn:      updateHandler.UpdateHandler,
 	})
 
 	readHandler := ReadHandler{
@@ -31,16 +31,16 @@ func InitializeHandlers(service *service.MetricsService) []Handler {
 	}
 	readHandler.CreateTemplate()
 	handlers = append(handlers, Handler{
-		Name:      "metrics list",
-		Method:    http.MethodGet,
-		UrlPath:   "/",
-		HandlerFn: readHandler.ListHandler,
+		Name:           "metrics list",
+		Method:         http.MethodGet,
+		UrlPathPattern: "/",
+		HandlerFn:      readHandler.ListHandler,
 	})
 	handlers = append(handlers, Handler{
-		Name:      "metrics list",
-		Method:    http.MethodGet,
-		UrlPath:   "/value/{type}/{name}",
-		HandlerFn: readHandler.GetHandler,
+		Name:           "metrics list",
+		Method:         http.MethodGet,
+		UrlPathPattern: "/value/{type}/{name}",
+		HandlerFn:      readHandler.GetHandler,
 	})
 
 	return handlers

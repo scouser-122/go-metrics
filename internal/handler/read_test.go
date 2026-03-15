@@ -37,16 +37,10 @@ func TestListHandler(t *testing.T) {
 	metricsService := service.MetricsService{
 		Storage: &memStorage,
 	}
-	updateHandler := UpdateHandler{
-		Service: metricsService,
-	}
-	obtainHandler := ReadHandler{
-		Service: metricsService,
-	}
-	obtainHandler.CreateTemplate()
+	handlers := InitializeHandlers(&metricsService)
 	for _, test := range listTests {
 		t.Run(test.name, func(t *testing.T) {
-			r := CreateChiRouter(&updateHandler, &obtainHandler)
+			r := CreateChiRouter(&handlers)
 
 			request := httptest.NewRequest(test.request.method, test.request.path, nil)
 			// создаём новый Recorder
@@ -128,15 +122,10 @@ func TestGetHandler(t *testing.T) {
 	metricsService := service.MetricsService{
 		Storage: &memStorage,
 	}
-	updateHandler := UpdateHandler{
-		Service: metricsService,
-	}
-	obtainHandler := ReadHandler{
-		Service: metricsService,
-	}
+	handlers := InitializeHandlers(&metricsService)
 	for _, test := range getTests {
 		t.Run(test.name, func(t *testing.T) {
-			r := CreateChiRouter(&updateHandler, &obtainHandler)
+			r := CreateChiRouter(&handlers)
 
 			request := httptest.NewRequest(test.request.method, test.request.path, nil)
 			// создаём новый Recorder

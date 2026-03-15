@@ -7,14 +7,14 @@ import (
 	"github.com/scouser-122/go-metrics/internal/logger"
 )
 
-func CreateChiRouter(handlers []Handler) *chi.Mux {
+func CreateChiRouter(handlers *[]Handler) *chi.Mux {
 	r := chi.NewRouter()
-	for _, h := range handlers {
+	for _, h := range *handlers {
 		switch h.Method {
 		case http.MethodGet:
-			r.Get(h.UrlPath, RequestLogger(h.HandlerFn))
+			r.Get(h.UrlPathPattern, RequestLogger(h.HandlerFn))
 		case http.MethodPost:
-			r.Post(h.UrlPath, RequestLogger(h.HandlerFn))
+			r.Post(h.UrlPathPattern, RequestLogger(h.HandlerFn))
 		default:
 			logger.Log.Sugar().Errorf("Provided unsupported request handler method: %q", h)
 		}

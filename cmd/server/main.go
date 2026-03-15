@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/scouser-122/go-metrics/internal/handler"
@@ -25,8 +24,8 @@ func main() {
 
 	handlers := handler.InitializeHandlers(&metricsService)
 
-	r := handler.CreateChiRouter(handlers)
+	r := handler.CreateChiRouter(&handlers)
 
-	logger.Log.Sugar().Infof("Starting server on http://%s\n", flagRunAddr)
-	log.Fatal(http.ListenAndServe(flagRunAddr, r))
+	logger.Sugar.Infof("Starting server on http://%s", flagRunAddr)
+	logger.Sugar.Fatal(http.ListenAndServe(flagRunAddr, r))
 }

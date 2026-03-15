@@ -2,13 +2,13 @@ package handler
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"text/template"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
 	"github.com/scouser-122/go-metrics/internal/service"
 )
@@ -127,7 +127,7 @@ func (h *ReadHandler) processListRequest(res http.ResponseWriter, req *http.Requ
 	for _, m := range h.Service.Storage.GetAllMetrics() {
 		value, err := m.GetValueAsString()
 		if err != nil {
-			fmt.Printf("Can't get value for metric %s, type %s, err: %q", m.ID, m.MType, err)
+			logger.Sugar.Errorf("Can't get value for metric %s, type %s, err: %q", m.ID, m.MType, err)
 			continue
 		}
 		data.Metrics = append(data.Metrics, MetricItem{
@@ -140,7 +140,7 @@ func (h *ReadHandler) processListRequest(res http.ResponseWriter, req *http.Requ
 		http.Error(res, "Template rendering error", http.StatusInternalServerError)
 		return
 	}
-	fmt.Printf("Metrics list sent successfully\n")
+	logger.Sugar.Infof("Metrics list sent successfully")
 }
 
 func (h *ReadHandler) processGetRequest(res http.ResponseWriter, req *http.Request) {
@@ -150,16 +150,16 @@ func (h *ReadHandler) processGetRequest(res http.ResponseWriter, req *http.Reque
 	result, err := h.Service.GetValue(metricType, name)
 	if err != nil {
 		if errors.As(err, &models.ErrIncorrectType) {
-			fmt.Printf("Metric type incorrect: %q\n", err.Error())
+			logger.Sugar.Errorf("Metric type incorrect: %q", err.Error())
 			res.WriteHeader(http.StatusBadRequest)
 		} else if errors.As(err, &models.ErrGetMetric) {
-			fmt.Printf("Can't get metric value: %q\n", err.Error())
+			logger.Sugar.Errorf("Can't get metric value: %q", err.Error())
 			res.WriteHeader(http.StatusNotFound)
 		}
 		return
 	}
 
-	fmt.Printf("Metric value obtained successfully: %s [%s] %q\n", metricType, name, result)
+	logger.Sugar.Infof("Metric value obtained successfully: %s [%s] %q", metricType, name, result)
 	res.WriteHeader(http.StatusOK)
 	res.Write([]byte(result))
 }

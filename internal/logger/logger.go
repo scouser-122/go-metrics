@@ -19,5 +19,6 @@ func Initialize(level string) error {
 		return err
 	}
 	Log = zl
+	Sugar = Log.Sugar()
 	return nil
 }

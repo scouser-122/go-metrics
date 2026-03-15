@@ -148,14 +148,9 @@ func TestUpdateHandler(t *testing.T) {
 			metricsService := service.MetricsService{
 				Storage: &memStorage,
 			}
-			updateHandler := UpdateHandler{
-				Service: metricsService,
-			}
-			obtainHandler := ReadHandler{
-				Service: metricsService,
-			}
+			handlers := InitializeHandlers(&metricsService)
 
-			r := CreateChiRouter(&updateHandler, &obtainHandler)
+			r := CreateChiRouter(&handlers)
 
 			request := httptest.NewRequest(test.request.method, test.request.path, nil)
 			request.Header.Add("Content-Type", test.request.contentType)

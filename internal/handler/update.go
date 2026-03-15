@@ -2,10 +2,10 @@ package handler
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
 	"github.com/scouser-122/go-metrics/internal/service"
 )
@@ -27,21 +27,21 @@ func (h *UpdateHandler) processUpdateRequest(res http.ResponseWriter, req *http.
 	result, err := h.Service.SaveMetric(metricType, name, value)
 	if err != nil {
 		if errors.As(err, &models.ErrIncorrectType) {
-			fmt.Printf("Metric type incorrect: %q\n", err.Error())
+			logger.Sugar.Errorf("Metric type incorrect: %q", err.Error())
 			res.WriteHeader(http.StatusBadRequest)
 			return
 		} else if errors.As(err, &models.ErrIncorrectFormat) {
-			fmt.Printf("Metric format incorrect: %q\n", err.Error())
+			logger.Sugar.Errorf("Metric format incorrect: %q", err.Error())
 			res.WriteHeader(http.StatusBadRequest)
 			return
 		} else if errors.As(err, &models.ErrSaveMetric) {
-			fmt.Printf("Metric save error: %q\n", err.Error())
+			logger.Sugar.Errorf("Metric save error: %q", err.Error())
 			res.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	}
 
-	fmt.Printf("Metric saved successfully: %q %q %s\n", metricType, name, value)
+	logger.Sugar.Infof("Metric saved successfully: %q %q %s", metricType, name, value)
 	res.WriteHeader(http.StatusOK)
 	res.Write([]byte(result))
 }
