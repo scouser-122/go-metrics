@@ -25,6 +25,12 @@ func InitializeHandlers(service *service.MetricsService) []Handler {
 		URLPathPattern: "/update/{type}/{name}/{value}",
 		HandlerFn:      updateHandler.UpdateHandler,
 	})
+	handlers = append(handlers, Handler{
+		Name:           "metric update json",
+		Method:         http.MethodPost,
+		URLPathPattern: "/update",
+		HandlerFn:      updateHandler.UpdateJSONHandler,
+	})
 
 	readHandler := ReadHandler{
 		Service: service,
@@ -37,10 +43,16 @@ func InitializeHandlers(service *service.MetricsService) []Handler {
 		HandlerFn:      readHandler.ListHandler,
 	})
 	handlers = append(handlers, Handler{
-		Name:           "metrics list",
+		Name:           "metrics value",
 		Method:         http.MethodGet,
 		URLPathPattern: "/value/{type}/{name}",
-		HandlerFn:      readHandler.GetHandler,
+		HandlerFn:      readHandler.ValueHandler,
+	})
+	handlers = append(handlers, Handler{
+		Name:           "metrics value json",
+		Method:         http.MethodPost,
+		URLPathPattern: "/value",
+		HandlerFn:      readHandler.ValueJSONHandler,
 	})
 
 	return handlers

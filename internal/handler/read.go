@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
@@ -11,6 +13,7 @@ import (
 	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
 	"github.com/scouser-122/go-metrics/internal/service"
+	"go.uber.org/zap"
 )
 
 type ReadHandler struct {
@@ -112,9 +115,14 @@ func (h *ReadHandler) ListHandler(res http.ResponseWriter, req *http.Request) {
 	h.processListRequest(res, req)
 }
 
-func (h *ReadHandler) GetHandler(res http.ResponseWriter, req *http.Request) {
+func (h *ReadHandler) ValueHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/plain")
-	h.processGetRequest(res, req)
+	h.processValueRequest(res, req)
+}
+
+func (h *ReadHandler) ValueJSONHandler(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
+	h.processValueJSONRequest(res, req)
 }
 
 func (h *ReadHandler) processListRequest(res http.ResponseWriter, req *http.Request) {
@@ -127,7 +135,7 @@ func (h *ReadHandler) processListRequest(res http.ResponseWriter, req *http.Requ
 	for _, m := range h.Service.Storage.GetAllMetrics() {
 		value, err := m.GetValueAsString()
 		if err != nil {
-			logger.Sugar.Errorf("Can't get value for metric %s, type %s, err: %q", m.ID, m.MType, err)
+			logger.Sugar.Errorf("can't get value for metric %s, type %s, err: %q", m.ID, m.MType, err)
 			continue
 		}
 		data.Metrics = append(data.Metrics, MetricItem{
@@ -140,26 +148,58 @@ func (h *ReadHandler) processListRequest(res http.ResponseWriter, req *http.Requ
 		http.Error(res, "Template rendering error", http.StatusInternalServerError)
 		return
 	}
-	logger.Sugar.Infof("Metrics list sent successfully")
+	logger.Sugar.Infof("metrics list sent successfully")
 }
 
-func (h *ReadHandler) processGetRequest(res http.ResponseWriter, req *http.Request) {
+func (h *ReadHandler) processValueRequest(res http.ResponseWriter, req *http.Request) {
 	metricType := chi.URLParam(req, "type")
 	name := chi.URLParam(req, "name")
 
 	result, err := h.Service.GetValue(metricType, name)
 	if err != nil {
 		if errors.As(err, &models.ErrIncorrectType) {
-			logger.Sugar.Errorf("Metric type incorrect: %q", err.Error())
+			logger.Sugar.Errorf("metric type incorrect: %q", err.Error())
 			res.WriteHeader(http.StatusBadRequest)
 		} else if errors.As(err, &models.ErrGetMetric) {
-			logger.Sugar.Errorf("Can't get metric value: %q", err.Error())
+			logger.Sugar.Errorf("can't get metric value: %q", err.Error())
 			res.WriteHeader(http.StatusNotFound)
 		}
 		return
 	}
 
-	logger.Sugar.Infof("Metric value obtained successfully: %s [%s] %q", metricType, name, result)
+	logger.Sugar.Infof("metric value obtained successfully: %s [%s] %q", metricType, name, result)
 	res.WriteHeader(http.StatusOK)
 	res.Write([]byte(result))
+}
+
+func (h *ReadHandler) processValueJSONRequest(res http.ResponseWriter, req *http.Request) {
+	var metric models.Metrics
+	dec := json.NewDecoder(req.Body)
+	if err := dec.Decode(&metric); err != nil {
+		logger.Log.Error("cannot decode request JSON body ", zap.Error(err))
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	result, err := h.Service.ReadMetric(&metric)
+	if err != nil {
+		if errors.As(err, &models.ErrGetMetric) {
+			logger.Sugar.Errorf("can't get metric value: %q", err.Error())
+			res.WriteHeader(http.StatusNotFound)
+		}
+		return
+	}
+
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	if err := enc.Encode(result); err != nil {
+		logger.Log.Error("error encoding response ", zap.Error(err))
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	res.Header().Set("Content-Type", "application/json")
+	logger.Sugar.Infof("metric value obtained successfully ", zap.String("metric", result.String()))
+	res.WriteHeader(http.StatusOK)
+	res.Write(buf.Bytes())
 }

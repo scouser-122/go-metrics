@@ -51,6 +51,30 @@ func (service *MetricsService) SaveMetric(metricType string, name string, value 
 	return result, nil
 }
 
+func (service *MetricsService) SaveMetricModel(metric *models.Metrics) (models.Metrics, error) {
+	var result models.Metrics
+	switch metric.MType {
+	case models.Counter:
+		if metric.Delta == nil {
+			return result, models.MetricFormatError{
+				Message: "Metric counter missing delta",
+			}
+		}
+	case models.Gauge:
+		if metric.Value == nil {
+			return result, models.MetricFormatError{
+				Message: "Metric gauge missing value",
+			}
+		}
+	default:
+		return result, models.IncorrectMetricType{
+			Message: fmt.Sprintf("Metric type incorrect: %q", metric.MType),
+		}
+	}
+	result, err := service.Storage.SaveMetric(*metric)
+	return result, err
+}
+
 func (service *MetricsService) GetAllMetrics() []models.Metrics {
 	return service.Storage.GetAllMetrics()
 }
@@ -80,4 +104,14 @@ func (service *MetricsService) GetValue(metricType string, name string) (string,
 	}
 
 	return result, nil
+}
+
+func (service *MetricsService) ReadMetric(metric *models.Metrics) (*models.Metrics, error) {
+	if metric.MType != models.Counter && metric.MType != models.Gauge {
+		return nil, models.IncorrectMetricType{
+			Message: fmt.Sprintf("Metric type incorrect: %q", metric.MType),
+		}
+	}
+	result, err := service.Storage.GetMetricWithValue(metric)
+	return result, err
 }

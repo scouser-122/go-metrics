@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"errors"
 	"strconv"
 )
@@ -24,16 +25,25 @@ type Metrics struct {
 }
 
 func (m *Metrics) GetValueAsString() (string, error) {
-	if m.MType == Counter {
+	switch m.MType {
+	case Counter:
 		if m.Delta == nil {
 			return "", errors.New("absent value for counter")
 		}
 		return strconv.FormatInt(*m.Delta, 10), nil
-	} else if m.MType == Gauge {
+	case Gauge:
 		if m.Value == nil {
 			return "", errors.New("absent value for gauge")
 		}
 		return strconv.FormatFloat(*m.Value, 'f', -1, 64), nil
 	}
 	return "", errors.New("metric type incorrect")
+}
+
+func (m Metrics) String() string {
+	jsonData, err := json.Marshal(m)
+	if err != nil {
+		return err.Error()
+	}
+	return string(jsonData)
 }
