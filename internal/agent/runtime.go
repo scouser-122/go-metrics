@@ -121,7 +121,7 @@ func (agent *RuntimeMetricsAgent) SendMetrics() {
 
 	successSentCount := 0
 	for _, metric := range metrics {
-		metricValue, err := agent.SendMetric(client, &metric)
+		metricValue, err := agent.SendMetricJSON(client, &metric)
 		if err != nil {
 			fmt.Printf("Error sending metric %q: %s\n", metric.ID, err)
 			continue
@@ -158,6 +158,23 @@ func (agent *RuntimeMetricsAgent) SendMetric(client *resty.Client, metric *model
 		return "", fmt.Errorf("incorrect response status code: %q", resp.StatusCode())
 	}
 	return string(resp.Body()), nil
+}
+
+func (agent *RuntimeMetricsAgent) SendMetricJSON(client *resty.Client, metric *models.Metrics) (string, error) {
+	var url = fmt.Sprintf("%s/update", agent.Config.ServerAddress)
+	var savedMetric models.Metrics
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		SetBody(metric).
+		SetResult(&savedMetric).
+		Post(url)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return "", fmt.Errorf("incorrect response status code: %q", resp.StatusCode())
+	}
+	return savedMetric.GetValueAsString()
 }
 
 func (agent *RuntimeMetricsAgent) CollectAndSendMetricsInLoop() {
