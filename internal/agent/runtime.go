@@ -161,7 +161,7 @@ func (agent *RuntimeMetricsAgent) SendMetric(client *resty.Client, metric *model
 }
 
 func (agent *RuntimeMetricsAgent) SendMetricJSON(client *resty.Client, metric *models.Metrics) (string, error) {
-	var url = fmt.Sprintf("%s/update", agent.Config.ServerAddress)
+	var url = fmt.Sprintf("%s/update/", agent.Config.ServerAddress)
 	var savedMetric models.Metrics
 	resp, err := client.R().
 		SetHeader("Content-Type", "application/json").
@@ -172,7 +172,7 @@ func (agent *RuntimeMetricsAgent) SendMetricJSON(client *resty.Client, metric *m
 		return "", err
 	}
 	if resp.StatusCode() != http.StatusOK {
-		return "", fmt.Errorf("incorrect response status code: %q", resp.StatusCode())
+		return "", fmt.Errorf("incorrect response status code: %d", resp.StatusCode())
 	}
 	return savedMetric.GetValueAsString()
 }
