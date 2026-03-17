@@ -59,7 +59,7 @@ func (h *UpdateHandler) processUpdateJSONRequest(res http.ResponseWriter, req *h
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&metric); err != nil {
 		logger.Log.Error("cannot decode request JSON body ", zap.Error(err))
-		res.WriteHeader(http.StatusInternalServerError)
+		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
 

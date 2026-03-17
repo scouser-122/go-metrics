@@ -177,13 +177,16 @@ func (h *ReadHandler) processValueJSONRequest(res http.ResponseWriter, req *http
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&metric); err != nil {
 		logger.Log.Error("cannot decode request JSON body ", zap.Error(err))
-		res.WriteHeader(http.StatusInternalServerError)
+		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	result, err := h.Service.ReadMetric(&metric)
 	if err != nil {
-		if errors.As(err, &models.ErrGetMetric) {
+		if errors.As(err, &models.ErrIncorrectType) {
+			logger.Sugar.Errorf("metric type incorrect: %q", err.Error())
+			res.WriteHeader(http.StatusBadRequest)
+		} else if errors.As(err, &models.ErrGetMetric) {
 			logger.Sugar.Errorf("can't get metric value: %q", err.Error())
 			res.WriteHeader(http.StatusNotFound)
 		}
