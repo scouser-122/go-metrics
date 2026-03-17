@@ -248,9 +248,7 @@ func TestValueJSONHandler(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			memStorage := repository.MemStorage{}
 			if len(test.metrics) > 0 {
-				for _, m := range test.metrics {
-					memStorage.Metrics = append(memStorage.Metrics, m)
-				}
+				memStorage.Metrics = append(memStorage.Metrics, test.metrics...)
 			}
 
 			metricsService := service.MetricsService{
