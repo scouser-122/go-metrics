@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strings"
 	"text/template"
 	"time"
 
@@ -144,10 +145,14 @@ func (h *ReadHandler) processListRequest(res http.ResponseWriter, req *http.Requ
 			Value: value,
 		})
 	}
-	if err := h.tmpl.Execute(res, data); err != nil {
+	var sb strings.Builder
+	if err := h.tmpl.Execute(&sb, data); err != nil {
 		http.Error(res, "Template rendering error", http.StatusInternalServerError)
 		return
 	}
+	result := sb.String()
+	res.WriteHeader(http.StatusOK)
+	res.Write([]byte(result))
 	logger.Sugar.Infof("metrics list sent successfully")
 }
 

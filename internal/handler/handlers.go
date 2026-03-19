@@ -7,7 +7,6 @@ import (
 )
 
 type Handler struct {
-	Name           string
 	Method         string
 	URLPathPattern string
 	HandlerFn      http.HandlerFunc
@@ -20,19 +19,16 @@ func InitializeHandlers(service *service.MetricsService) []Handler {
 		Service: service,
 	}
 	handlers = append(handlers, Handler{
-		Name:           "metric update",
 		Method:         http.MethodPost,
 		URLPathPattern: "/update/{type}/{name}/{value}",
 		HandlerFn:      updateHandler.UpdateHandler,
 	})
 	handlers = append(handlers, Handler{
-		Name:           "metric update json",
 		Method:         http.MethodPost,
 		URLPathPattern: "/update/",
 		HandlerFn:      updateHandler.UpdateJSONHandler,
 	})
 	handlers = append(handlers, Handler{
-		Name:           "metric update json",
 		Method:         http.MethodPost,
 		URLPathPattern: "/update",
 		HandlerFn:      updateHandler.UpdateJSONHandler,
@@ -43,25 +39,21 @@ func InitializeHandlers(service *service.MetricsService) []Handler {
 	}
 	readHandler.CreateTemplate()
 	handlers = append(handlers, Handler{
-		Name:           "metrics list",
 		Method:         http.MethodGet,
 		URLPathPattern: "/",
 		HandlerFn:      readHandler.ListHandler,
 	})
 	handlers = append(handlers, Handler{
-		Name:           "metrics value",
 		Method:         http.MethodGet,
 		URLPathPattern: "/value/{type}/{name}",
 		HandlerFn:      readHandler.ValueHandler,
 	})
 	handlers = append(handlers, Handler{
-		Name:           "metrics value json",
 		Method:         http.MethodPost,
 		URLPathPattern: "/value",
 		HandlerFn:      readHandler.ValueJSONHandler,
 	})
 	handlers = append(handlers, Handler{
-		Name:           "metrics value json",
 		Method:         http.MethodPost,
 		URLPathPattern: "/value/",
 		HandlerFn:      readHandler.ValueJSONHandler,
