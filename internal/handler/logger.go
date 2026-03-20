@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
+	"go.uber.org/zap/zapcore"
 )
 
 func RequestLogger(h http.HandlerFunc) http.HandlerFunc {
@@ -32,19 +33,21 @@ func RequestLogger(h http.HandlerFunc) http.HandlerFunc {
 			ResponseData:   responseData,
 		}
 
-		bodyBytes, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "can't read body", http.StatusBadRequest)
-			return
+		if logger.Log.Level() == zapcore.DebugLevel {
+			bodyBytes, err := io.ReadAll(r.Body)
+			if err != nil {
+				http.Error(w, "can't read body", http.StatusBadRequest)
+				return
+			}
+			if len(bodyBytes) > 0 {
+				logger.Log.Sugar().Debugf(
+					"Request body. id: %s, body: %d",
+					requestId,
+					string(bodyBytes),
+				)
+			}
+			r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		}
-		if len(bodyBytes) > 0 {
-			logger.Log.Sugar().Debugf(
-				"Request body. id: %s, body: %d",
-				requestId,
-				string(bodyBytes),
-			)
-		}
-		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
 		h(&lw, r)
 

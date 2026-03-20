@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"compress/gzip"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -187,9 +188,13 @@ func TestSendMetricJSON(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 				headers := rw.Header()
 				headers.Add("Content-Type", "application/json")
+				headers.Set("Content-Encoding", "gzip")
+
 				rw.WriteHeader(test.response.status)
 				if test.response.body != "" {
-					rw.Write([]byte(test.response.body))
+					gz := gzip.NewWriter(rw)
+					defer gz.Close()
+					gz.Write([]byte(test.response.body))
 				}
 			}))
 			defer server.Close()

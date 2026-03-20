@@ -12,7 +12,7 @@ import (
 func main() {
 	parseFlags()
 	parseEnvVariables()
-	if err := logger.Initialize(flagLogLevel); err != nil {
+	if err := logger.Initialize(flagLogLevel, flagEnvironment); err != nil {
 		panic(err)
 	}
 
