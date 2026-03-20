@@ -83,10 +83,29 @@ func (memStorage *MemStorage) GetAllMetrics() []models.Metrics {
 }
 
 func (memStorage *MemStorage) SaveMetrics(metrics []models.Metrics) error {
-	for _, m := range metrics {
-		_, err := memStorage.SaveMetric(m)
-		if err != nil {
-			return err
+	for _, metric := range metrics {
+		index := slices.IndexFunc(memStorage.Metrics, func(m models.Metrics) bool {
+			return m.MType == metric.MType && m.ID == metric.ID
+		})
+		if index != -1 {
+			foundMetric := memStorage.Metrics[index]
+			switch metric.MType {
+			case models.Counter:
+				*foundMetric.Delta = *metric.Delta
+			case models.Gauge:
+				*foundMetric.Value = *metric.Value
+			}
+		} else {
+			metricCopy := metric
+			if metric.Delta != nil {
+				metricCopy.Delta = new(int64)
+				*metricCopy.Delta = *metric.Delta
+			}
+			if metric.Value != nil {
+				metricCopy.Value = new(float64)
+				*metricCopy.Value = *metric.Value
+			}
+			memStorage.Metrics = append(memStorage.Metrics, metricCopy)
 		}
 	}
 	return nil

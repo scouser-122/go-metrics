@@ -88,6 +88,9 @@ func (storage *FileSystemStorage) GetMetricWithValue(metric *models.Metrics) (*m
 
 func (storage *FileSystemStorage) saveMetricsInFS() error {
 	metrics := storage.MemoryStorage.Metrics
+	if len(metrics) == 0 {
+		return nil
+	}
 	data, err := json.MarshalIndent(metrics, "", "  ")
 	if err != nil {
 		logger.Sugar.Errorf("couldn't parse metrics to save in FS: %q", err)
