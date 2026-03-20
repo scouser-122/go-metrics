@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/scouser-122/go-metrics/internal/config"
 	models "github.com/scouser-122/go-metrics/internal/model"
 	"github.com/scouser-122/go-metrics/internal/repository"
 	"github.com/scouser-122/go-metrics/internal/service"
@@ -246,6 +247,7 @@ var valueJSONTests = []struct {
 func TestValueJSONHandler(t *testing.T) {
 	for _, test := range valueJSONTests {
 		t.Run(test.name, func(t *testing.T) {
+			config := config.DefaultServerConfig()
 			memStorage := repository.MemStorage{}
 			if len(test.metrics) > 0 {
 				memStorage.Metrics = append(memStorage.Metrics, test.metrics...)
@@ -254,6 +256,7 @@ func TestValueJSONHandler(t *testing.T) {
 			metricsService := service.MetricsService{
 				Storage: &memStorage,
 			}
+			metricsService.Initialize(&config)
 			handlers := InitializeHandlers(&metricsService)
 
 			r := CreateChiRouter(&handlers)

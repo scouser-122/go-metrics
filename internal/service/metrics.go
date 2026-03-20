@@ -3,13 +3,25 @@ package service
 import (
 	"fmt"
 	"strconv"
+	"time"
 
+	"github.com/scouser-122/go-metrics/internal/config"
+	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
 	"github.com/scouser-122/go-metrics/internal/repository"
 )
 
 type MetricsService struct {
-	Storage repository.MetricsStorage
+	Storage      repository.MetricsStorage
+	serverConfig *config.ServerConfig
+	fsStorage    *repository.FileSystemStorage
+}
+
+func (service *MetricsService) Initialize(config *config.ServerConfig) {
+	service.serverConfig = config
+	service.fsStorage = repository.CreateFileSystemStorage(config)
+	service.restoreMetricsIfRequired()
+	service.storeMetricsInFsIfRequired()
 }
 
 func (service *MetricsService) SaveMetric(metricType string, name string, value string) (string, error) {
@@ -32,6 +44,11 @@ func (service *MetricsService) SaveMetric(metricType string, name string, value 
 		if err != nil {
 			return result, err
 		}
+		if service.serverConfig.StoreInterval == 0 {
+			if _, err := service.fsStorage.SaveCounter(name, counterValue); err != nil {
+				return result, err
+			}
+		}
 		result = strconv.FormatInt(saveResult, 10)
 
 	case models.Gauge:
@@ -44,6 +61,11 @@ func (service *MetricsService) SaveMetric(metricType string, name string, value 
 		saveResult, err := service.Storage.SaveGauge(name, gaugeValue)
 		if err != nil {
 			return result, err
+		}
+		if service.serverConfig.StoreInterval == 0 {
+			if _, err := service.fsStorage.SaveGauge(name, gaugeValue); err != nil {
+				return result, err
+			}
 		}
 		result = strconv.FormatFloat(saveResult, 'f', -1, 64)
 	}
@@ -72,6 +94,11 @@ func (service *MetricsService) SaveMetricModel(metric *models.Metrics) (models.M
 		}
 	}
 	result, err := service.Storage.SaveMetric(*metric)
+	if service.serverConfig.StoreInterval == 0 {
+		if result, err := service.fsStorage.SaveMetric(*metric); err != nil {
+			return result, err
+		}
+	}
 	return result, err
 }
 
@@ -114,4 +141,29 @@ func (service *MetricsService) ReadMetric(metric *models.Metrics) (*models.Metri
 	}
 	result, err := service.Storage.GetMetricWithValue(metric)
 	return result, err
+}
+
+func (service *MetricsService) restoreMetricsIfRequired() {
+	if !service.serverConfig.Restore {
+		return
+	}
+	metrics := service.fsStorage.GetAllMetrics()
+	service.Storage.SaveMetrics(metrics)
+}
+
+func (service *MetricsService) storeMetricsInFsIfRequired() {
+	if service.serverConfig.StoreInterval == 0 || service.serverConfig.StoreInterval == -1 {
+		return
+	}
+	logger.Sugar.Infof("start storing metrics in time interval %d seconds", service.serverConfig.StoreInterval)
+	go service.storeMetricsInFsWorker()
+}
+
+func (service *MetricsService) storeMetricsInFsWorker() {
+	ticker := time.NewTicker(time.Duration(service.serverConfig.StoreInterval) * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		service.fsStorage.SaveMetrics(service.Storage.GetAllMetrics())
+	}
 }

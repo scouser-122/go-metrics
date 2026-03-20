@@ -18,7 +18,7 @@ func RequestLogger(h http.HandlerFunc) http.HandlerFunc {
 
 		requestID := uuid.New()
 		logger.Log.Sugar().Infof(
-			"Received request. uri: %s, method: %s, id: %s",
+			"received request. uri: %s, method: %s, id: %s",
 			r.RequestURI,
 			r.Method,
 			requestID,
@@ -41,7 +41,7 @@ func RequestLogger(h http.HandlerFunc) http.HandlerFunc {
 			}
 			if len(bodyBytes) > 0 {
 				logger.Log.Sugar().Debugf(
-					"Request body. id: %s, body: %d",
+					"request body. id: %s, body: %d",
 					requestID,
 					string(bodyBytes),
 				)
@@ -54,7 +54,7 @@ func RequestLogger(h http.HandlerFunc) http.HandlerFunc {
 		duration := time.Since(start)
 
 		logger.Log.Sugar().Infof(
-			"Processed request. id: %s, status: %d, duration: %s",
+			"processed request. id: %s, status: %d, duration: %s",
 			requestID,
 			responseData.Status,
 			duration,

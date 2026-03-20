@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/scouser-122/go-metrics/internal/config"
 	"github.com/scouser-122/go-metrics/internal/repository"
 	"github.com/scouser-122/go-metrics/internal/service"
 	"github.com/stretchr/testify/assert"
@@ -134,11 +135,12 @@ var updateTests = []struct {
 func TestUpdateHandler(t *testing.T) {
 	for _, test := range updateTests {
 		t.Run(test.name, func(t *testing.T) {
+			config := config.DefaultServerConfig()
 			memStorage := repository.MemStorage{}
-
 			metricsService := service.MetricsService{
 				Storage: &memStorage,
 			}
+			metricsService.Initialize(&config)
 			handlers := InitializeHandlers(&metricsService)
 
 			r := CreateChiRouter(&handlers)
@@ -282,11 +284,12 @@ var updateJSONTests = []struct {
 func TestUpdateJSONHandler(t *testing.T) {
 	for _, test := range updateJSONTests {
 		t.Run(test.name, func(t *testing.T) {
+			config := config.DefaultServerConfig()
 			memStorage := repository.MemStorage{}
-
 			metricsService := service.MetricsService{
 				Storage: &memStorage,
 			}
+			metricsService.Initialize(&config)
 			handlers := InitializeHandlers(&metricsService)
 
 			r := CreateChiRouter(&handlers)

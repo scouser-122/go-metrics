@@ -64,13 +64,32 @@ func (memStorage *MemStorage) SaveMetric(metric models.Metrics) (models.Metrics,
 			return foundMetric, nil
 		}
 	} else {
-		memStorage.Metrics = append(memStorage.Metrics, metric)
+		metricCopy := metric
+		if metric.Delta != nil {
+			metricCopy.Delta = new(int64)
+			*metricCopy.Delta = *metric.Delta
+		}
+		if metric.Value != nil {
+			metricCopy.Value = new(float64)
+			*metricCopy.Value = *metric.Value
+		}
+		memStorage.Metrics = append(memStorage.Metrics, metricCopy)
 	}
 	return metric, nil
 }
 
 func (memStorage *MemStorage) GetAllMetrics() []models.Metrics {
 	return memStorage.Metrics
+}
+
+func (memStorage *MemStorage) SaveMetrics(metrics []models.Metrics) error {
+	for _, m := range metrics {
+		_, err := memStorage.SaveMetric(m)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (memStorage *MemStorage) GetCounter(name string) (int64, error) {

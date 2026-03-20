@@ -113,7 +113,7 @@ func (agent *RuntimeMetricsAgent) CollectMetrics() {
 	*pollCountMetric.Delta = agent.pollCount
 	agent.writes <- WriteRequest{data: pollCountMetric}
 
-	logger.Sugar.Infof("Successfully collect %d metrics, poll count: %d\n", len(runtimeMetrics), agent.pollCount)
+	logger.Sugar.Infof("successfully collect %d metrics, poll count: %d\n", len(runtimeMetrics), agent.pollCount)
 }
 
 func (agent *RuntimeMetricsAgent) SendMetrics() {
@@ -127,14 +127,14 @@ func (agent *RuntimeMetricsAgent) SendMetrics() {
 	for _, metric := range metrics {
 		metricValue, err := agent.SendMetricJSON(client, &metric)
 		if err != nil {
-			logger.Sugar.Errorf("Error sending metric %q: %s\n", metric.ID, err)
+			logger.Sugar.Errorf("error sending metric %q: %s\n", metric.ID, err)
 			continue
 		} else {
-			logger.Sugar.Infof("Metric %q sent successfully, value: %s\n", metric.ID, metricValue)
+			logger.Sugar.Infof("metric %q sent successfully, value: %s\n", metric.ID, metricValue)
 			successSentCount++
 		}
 	}
-	logger.Sugar.Infof("Successfully sent %d metrics\n", successSentCount)
+	logger.Sugar.Infof("successfully sent %d metrics\n", successSentCount)
 
 }
 
@@ -196,7 +196,7 @@ func (agent *RuntimeMetricsAgent) SendMetricJSON(client *resty.Client, metric *m
 }
 
 func (agent *RuntimeMetricsAgent) CollectAndSendMetricsInLoop() {
-	logger.Sugar.Info("Start collecting metrics")
+	logger.Sugar.Info("start collecting metrics")
 	agent.Init()
 
 	var wg sync.WaitGroup
@@ -209,7 +209,7 @@ func (agent *RuntimeMetricsAgent) CollectAndSendMetricsInLoop() {
 
 	wg.Wait()
 
-	logger.Sugar.Info("Finish collecting metrics")
+	logger.Sugar.Info("finish collecting metrics")
 }
 
 func (agent *RuntimeMetricsAgent) CollectMetricsWorker(wg *sync.WaitGroup) {

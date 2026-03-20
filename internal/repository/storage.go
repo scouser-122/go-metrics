@@ -7,6 +7,7 @@ type MetricsStorage interface {
 	SaveGauge(string, float64) (float64, error)
 	SaveMetric(models.Metrics) (models.Metrics, error)
 	GetAllMetrics() []models.Metrics
+	SaveMetrics([]models.Metrics) error
 	GetGauge(string) (float64, error)
 	GetCounter(string) (int64, error)
 	GetMetricWithValue(*models.Metrics) (*models.Metrics, error)
