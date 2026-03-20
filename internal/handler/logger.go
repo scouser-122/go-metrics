@@ -16,12 +16,12 @@ func RequestLogger(h http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
-		requestId := uuid.New()
+		requestID := uuid.New()
 		logger.Log.Sugar().Infof(
 			"Received request. uri: %s, method: %s, id: %s",
 			r.RequestURI,
 			r.Method,
-			requestId,
+			requestID,
 		)
 
 		responseData := &models.ResponseData{
@@ -42,7 +42,7 @@ func RequestLogger(h http.HandlerFunc) http.HandlerFunc {
 			if len(bodyBytes) > 0 {
 				logger.Log.Sugar().Debugf(
 					"Request body. id: %s, body: %d",
-					requestId,
+					requestID,
 					string(bodyBytes),
 				)
 			}
@@ -55,7 +55,7 @@ func RequestLogger(h http.HandlerFunc) http.HandlerFunc {
 
 		logger.Log.Sugar().Infof(
 			"Processed request. id: %s, status: %d, duration: %s",
-			requestId,
+			requestID,
 			responseData.Status,
 			duration,
 		)
