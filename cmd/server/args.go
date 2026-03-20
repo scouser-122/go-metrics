@@ -12,7 +12,7 @@ import (
 
 func parseFlags(config *config.ServerConfig) {
 	flag.StringVar(&config.RunAddr, "a", "localhost:8080", "address and port to run server")
-	flag.StringVar(&config.LogLevel, "l", "debug", "logging level")
+	flag.StringVar(&config.LogLevel, "l", "info", "logging level")
 	flag.StringVar(&config.Environment, "e", "dev", "environment")
 	flag.IntVar(&config.StoreInterval, "i", 300, "time interval in seconds to store metrics in file system")
 	flag.StringVar(&config.StorePath, "f", "./metrics_data.json", "metrics store file path")
