@@ -11,7 +11,7 @@ type MemStorage struct {
 	Metrics []models.Metrics
 }
 
-func (memStorage *MemStorage) SaveCounter(name string, value int64) (int64, error) {
+func (memStorage *MemStorage) UpdateOrCreateCounter(name string, value int64) (int64, error) {
 	index := slices.IndexFunc(memStorage.Metrics, func(m models.Metrics) bool {
 		return m.MType == models.Counter && m.ID == name
 	})
@@ -30,7 +30,7 @@ func (memStorage *MemStorage) SaveCounter(name string, value int64) (int64, erro
 	}
 }
 
-func (memStorage *MemStorage) SaveGauge(name string, value float64) (float64, error) {
+func (memStorage *MemStorage) UpdateOrCreateGauge(name string, value float64) (float64, error) {
 	index := slices.IndexFunc(memStorage.Metrics, func(m models.Metrics) bool {
 		return m.MType == models.Gauge && m.ID == name
 	})
@@ -49,7 +49,7 @@ func (memStorage *MemStorage) SaveGauge(name string, value float64) (float64, er
 	}
 }
 
-func (memStorage *MemStorage) SaveMetric(metric models.Metrics) (models.Metrics, error) {
+func (memStorage *MemStorage) UpdateOrCreateMetric(metric models.Metrics) (models.Metrics, error) {
 	index := slices.IndexFunc(memStorage.Metrics, func(m models.Metrics) bool {
 		return m.MType == metric.MType && m.ID == metric.ID
 	})

@@ -2,9 +2,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
-	"os"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/scouser-122/go-metrics/internal/config"
@@ -25,5 +23,4 @@ func parseEnvVariables(config *config.ServerConfig) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(os.Getenv("LOG_LEVEL"))
 }

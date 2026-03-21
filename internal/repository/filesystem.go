@@ -22,8 +22,8 @@ func CreateFileSystemStorage(config *config.ServerConfig) *FileSystemStorage {
 	}
 }
 
-func (storage *FileSystemStorage) SaveCounter(name string, value int64) (int64, error) {
-	value, err := storage.MemoryStorage.SaveCounter(name, value)
+func (storage *FileSystemStorage) UpdateOrCreateCounter(name string, value int64) (int64, error) {
+	value, err := storage.MemoryStorage.UpdateOrCreateCounter(name, value)
 	if err != nil {
 		return value, err
 	}
@@ -31,8 +31,8 @@ func (storage *FileSystemStorage) SaveCounter(name string, value int64) (int64, 
 	return value, err
 }
 
-func (storage *FileSystemStorage) SaveGauge(name string, value float64) (float64, error) {
-	value, err := storage.MemoryStorage.SaveGauge(name, value)
+func (storage *FileSystemStorage) UpdateOrCreateGauge(name string, value float64) (float64, error) {
+	value, err := storage.MemoryStorage.UpdateOrCreateGauge(name, value)
 	if err != nil {
 		return value, err
 	}
@@ -40,8 +40,8 @@ func (storage *FileSystemStorage) SaveGauge(name string, value float64) (float64
 	return value, err
 }
 
-func (storage *FileSystemStorage) SaveMetric(metric models.Metrics) (models.Metrics, error) {
-	metric, err := storage.MemoryStorage.SaveMetric(metric)
+func (storage *FileSystemStorage) UpdateOrCreateMetric(metric models.Metrics) (models.Metrics, error) {
+	metric, err := storage.MemoryStorage.UpdateOrCreateMetric(metric)
 	if err != nil {
 		return metric, err
 	}
@@ -115,6 +115,8 @@ func (storage *FileSystemStorage) loadMetricsFromFS() {
 		logger.Sugar.Errorf("couldn't parse metrics loaded from FS: %q", err)
 		return
 	}
-	logger.Sugar.Infof("succesfully loaded %d metrics from file %s", len(result), storage.config.StorePath)
-	storage.MemoryStorage.Metrics = result
+	if len(result) > 0 {
+		logger.Sugar.Infof("succesfully loaded %d metrics from file %s", len(result), storage.config.StorePath)
+		storage.MemoryStorage.Metrics = result
+	}
 }

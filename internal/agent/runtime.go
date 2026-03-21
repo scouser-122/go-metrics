@@ -113,7 +113,7 @@ func (agent *RuntimeMetricsAgent) CollectMetrics() {
 	*pollCountMetric.Delta = agent.pollCount
 	agent.writes <- WriteRequest{data: pollCountMetric}
 
-	logger.Sugar.Infof("successfully collect %d metrics, poll count: %d\n", len(runtimeMetrics), agent.pollCount)
+	logger.Sugar.Infof("successfully collect %d metrics, poll count: %d", len(runtimeMetrics), agent.pollCount)
 }
 
 func (agent *RuntimeMetricsAgent) SendMetrics() {
@@ -127,14 +127,14 @@ func (agent *RuntimeMetricsAgent) SendMetrics() {
 	for _, metric := range metrics {
 		metricValue, err := agent.SendMetricJSON(client, &metric)
 		if err != nil {
-			logger.Sugar.Errorf("error sending metric %q: %s\n", metric.ID, err)
+			logger.Sugar.Errorf("error sending metric %q: %s", metric.ID, err)
 			continue
 		} else {
-			logger.Sugar.Infof("metric %q sent successfully, value: %s\n", metric.ID, metricValue)
+			logger.Sugar.Infof("metric %q sent successfully, value: %s", metric.ID, metricValue)
 			successSentCount++
 		}
 	}
-	logger.Sugar.Infof("successfully sent %d metrics\n", successSentCount)
+	logger.Sugar.Infof("successfully sent %d metrics", successSentCount)
 
 }
 

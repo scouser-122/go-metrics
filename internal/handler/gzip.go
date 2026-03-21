@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"sync"
 )
 
 type gzipWriter struct {
@@ -13,10 +14,18 @@ type gzipWriter struct {
 	zw *gzip.Writer
 }
 
-func newGzipWriter(w http.ResponseWriter) *gzipWriter {
+var gzipWriterPool = sync.Pool{
+	New: func() interface{} {
+		return gzip.NewWriter(io.Discard)
+	},
+}
+
+func getGzipWriter(w http.ResponseWriter) *gzipWriter {
+	writer := gzipWriterPool.Get().(*gzip.Writer)
+	writer.Reset(w)
 	return &gzipWriter{
 		w:  w,
-		zw: gzip.NewWriter(w),
+		zw: writer,
 	}
 }
 
@@ -36,7 +45,9 @@ func (c *gzipWriter) WriteHeader(statusCode int) {
 }
 
 func (c *gzipWriter) Close() error {
-	return c.zw.Close()
+	err := c.zw.Close()
+	gzipWriterPool.Put(c.zw)
+	return err
 }
 
 type gzipReader struct {
@@ -44,19 +55,24 @@ type gzipReader struct {
 	zr *gzip.Reader
 }
 
-func newGzipReader(r io.ReadCloser) (*gzipReader, error) {
-	zr, err := gzip.NewReader(r)
-	if err != nil {
+var gzipReaderPool = sync.Pool{
+	New: func() interface{} {
+		return new(gzip.Reader)
+	},
+}
+
+func getGzipReader(r io.ReadCloser) (*gzipReader, error) {
+	zr := gzipReaderPool.Get().(*gzip.Reader)
+	if err := zr.Reset(r); err != nil {
 		return nil, err
 	}
-
 	return &gzipReader{
 		r:  r,
 		zr: zr,
 	}, nil
 }
 
-func (c gzipReader) Read(p []byte) (n int, err error) {
+func (c *gzipReader) Read(p []byte) (n int, err error) {
 	return c.zr.Read(p)
 }
 
@@ -64,7 +80,10 @@ func (c *gzipReader) Close() error {
 	if err := c.r.Close(); err != nil {
 		return err
 	}
-	return c.zr.Close()
+	gzipReaderPool.Put(c.zr)
+	err := c.zr.Close()
+	c.zr = nil
+	return err
 }
 
 func GzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
@@ -74,22 +93,23 @@ func GzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
 		acceptEncoding := r.Header.Get("Accept-Encoding")
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
 		if supportsGzip {
-			cw := newGzipWriter(w)
-			ow = cw
-			defer cw.Close()
+			gzWriter := getGzipWriter(w)
+			ow = gzWriter
+			defer gzWriter.Close()
 		}
 
 		contentEncoding := r.Header.Values("Content-Encoding")
 		contentType := r.Header.Values("Content-Type")
 		sendsGzip := slices.Contains(contentEncoding, "gzip") && slices.Contains(contentType, "application/json")
 		if sendsGzip {
-			cr, err := newGzipReader(r.Body)
+			var err error
+			gzReader, err := getGzipReader(r.Body)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			r.Body = cr
-			defer cr.Close()
+			r.Body = gzReader
+			defer gzReader.Close()
 		}
 
 		h.ServeHTTP(ow, r)

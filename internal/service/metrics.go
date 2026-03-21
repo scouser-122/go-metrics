@@ -14,7 +14,7 @@ import (
 type MetricsService struct {
 	Storage      repository.MetricsStorage
 	serverConfig *config.ServerConfig
-	fsStorage    *repository.FileSystemStorage
+	fsStorage    repository.MetricsStorage
 }
 
 func (service *MetricsService) Initialize(config *config.ServerConfig) {
@@ -40,12 +40,12 @@ func (service *MetricsService) SaveMetric(metricType string, name string, value 
 				Message: fmt.Sprintf("Metric counter incorrect format: %v\n", err),
 			}
 		}
-		saveResult, err := service.Storage.SaveCounter(name, counterValue)
+		saveResult, err := service.Storage.UpdateOrCreateCounter(name, counterValue)
 		if err != nil {
 			return result, err
 		}
 		if service.serverConfig.StoreInterval == 0 {
-			if _, err := service.fsStorage.SaveCounter(name, counterValue); err != nil {
+			if _, err := service.fsStorage.UpdateOrCreateCounter(name, counterValue); err != nil {
 				return result, err
 			}
 		}
@@ -58,12 +58,12 @@ func (service *MetricsService) SaveMetric(metricType string, name string, value 
 				Message: fmt.Sprintf("Metric gauge incorrect format: %v\n", err),
 			}
 		}
-		saveResult, err := service.Storage.SaveGauge(name, gaugeValue)
+		saveResult, err := service.Storage.UpdateOrCreateGauge(name, gaugeValue)
 		if err != nil {
 			return result, err
 		}
 		if service.serverConfig.StoreInterval == 0 {
-			if _, err := service.fsStorage.SaveGauge(name, gaugeValue); err != nil {
+			if _, err := service.fsStorage.UpdateOrCreateGauge(name, gaugeValue); err != nil {
 				return result, err
 			}
 		}
@@ -93,9 +93,9 @@ func (service *MetricsService) SaveMetricModel(metric *models.Metrics) (models.M
 			Message: fmt.Sprintf("Metric type incorrect: %q", metric.MType),
 		}
 	}
-	result, err := service.Storage.SaveMetric(*metric)
+	result, err := service.Storage.UpdateOrCreateMetric(*metric)
 	if service.serverConfig.StoreInterval == 0 {
-		if result, err := service.fsStorage.SaveMetric(*metric); err != nil {
+		if result, err := service.fsStorage.UpdateOrCreateMetric(*metric); err != nil {
 			return result, err
 		}
 	}
