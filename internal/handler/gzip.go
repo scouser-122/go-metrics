@@ -109,16 +109,7 @@ func (c *gzipReader) Close() error {
 
 func shouldDecompressRequest(r *http.Request) bool {
 	contentEncoding := r.Header.Values("Content-Encoding")
-	if !slices.Contains(contentEncoding, "gzip") {
-		return false
-	}
-	contentType := r.Header.Get("Content-Type")
-	for _, ct := range compressibleTypes {
-		if strings.HasPrefix(contentType, ct) {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(contentEncoding, "gzip")
 }
 
 func GzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
