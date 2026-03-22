@@ -14,6 +14,11 @@ type gzipWriter struct {
 	zw *gzip.Writer
 }
 
+var compressibleTypes = []string{
+	"text/html",
+	"application/json",
+}
+
 var gzipWriterPool = sync.Pool{
 	New: func() interface{} {
 		return gzip.NewWriter(io.Discard)
@@ -21,11 +26,9 @@ var gzipWriterPool = sync.Pool{
 }
 
 func getGzipWriter(w http.ResponseWriter) *gzipWriter {
-	writer := gzipWriterPool.Get().(*gzip.Writer)
-	writer.Reset(w)
 	return &gzipWriter{
 		w:  w,
-		zw: writer,
+		zw: nil,
 	}
 }
 
@@ -34,20 +37,38 @@ func (c *gzipWriter) Header() http.Header {
 }
 
 func (c *gzipWriter) Write(p []byte) (int, error) {
-	return c.zw.Write(p)
+	if c.shouldCompress() {
+		c.zw = gzipWriterPool.Get().(*gzip.Writer)
+		c.zw.Reset(c.w)
+		return c.zw.Write(p)
+	}
+	return c.w.Write(p)
 }
 
 func (c *gzipWriter) WriteHeader(statusCode int) {
-	if statusCode < 300 {
-		c.w.Header().Set("Content-Encoding", "gzip")
+	if c.shouldCompress() && statusCode < 300 {
+		c.Header().Set("Content-Encoding", "gzip")
 	}
 	c.w.WriteHeader(statusCode)
 }
 
+func (c *gzipWriter) shouldCompress() bool {
+	contentType := c.w.Header().Get("Content-Type")
+	for _, ct := range compressibleTypes {
+		if strings.HasPrefix(contentType, ct) {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *gzipWriter) Close() error {
-	err := c.zw.Close()
-	gzipWriterPool.Put(c.zw)
-	return err
+	if c.zw != nil {
+		err := c.zw.Close()
+		gzipWriterPool.Put(c.zw)
+		return err
+	}
+	return nil
 }
 
 type gzipReader struct {
@@ -80,10 +101,24 @@ func (c *gzipReader) Close() error {
 	if err := c.r.Close(); err != nil {
 		return err
 	}
-	gzipReaderPool.Put(c.zr)
 	err := c.zr.Close()
+	gzipReaderPool.Put(c.zr)
 	c.zr = nil
 	return err
+}
+
+func shouldDecompressRequest(r *http.Request) bool {
+	contentEncoding := r.Header.Values("Content-Encoding")
+	if !slices.Contains(contentEncoding, "gzip") {
+		return false
+	}
+	contentType := r.Header.Get("Content-Type")
+	for _, ct := range compressibleTypes {
+		if strings.HasPrefix(contentType, ct) {
+			return true
+		}
+	}
+	return false
 }
 
 func GzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
@@ -98,10 +133,7 @@ func GzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
 			defer gzWriter.Close()
 		}
 
-		contentEncoding := r.Header.Values("Content-Encoding")
-		contentType := r.Header.Values("Content-Type")
-		sendsGzip := slices.Contains(contentEncoding, "gzip") && slices.Contains(contentType, "application/json")
-		if sendsGzip {
+		if shouldDecompressRequest(r) {
 			var err error
 			gzReader, err := getGzipReader(r.Body)
 			if err != nil {
