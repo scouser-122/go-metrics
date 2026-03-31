@@ -4,13 +4,21 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/scouser-122/go-metrics/internal/logger"
 )
 
-func CreateChiRouter(updateHandler *UpdateHandler, obtainHandler *ReadHandler) *chi.Mux {
+func CreateChiRouter(handlers *[]Handler) *chi.Mux {
 	r := chi.NewRouter()
-	r.Post("/update/{type}/{name}/{value}", updateHandler.UpdateHandler)
-	r.Get("/", obtainHandler.ListHandler)
-	r.Get("/value/{type}/{name}", obtainHandler.GetHandler)
+	for _, h := range *handlers {
+		switch h.Method {
+		case http.MethodGet:
+			r.Get(h.URLPathPattern, GzipMiddleware(RequestLogger(h.HandlerFn)))
+		case http.MethodPost:
+			r.Post(h.URLPathPattern, GzipMiddleware(RequestLogger(h.HandlerFn)))
+		default:
+			logger.Log.Sugar().Errorf("Provided unsupported request handler method: %q", h)
+		}
+	}
 	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "text/plain")
 		w.WriteHeader(405)

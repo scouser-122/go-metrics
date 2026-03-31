@@ -11,7 +11,7 @@ type MemStorage struct {
 	Metrics []models.Metrics
 }
 
-func (memStorage *MemStorage) SaveCounter(name string, value int64) (int64, error) {
+func (memStorage *MemStorage) UpdateOrCreateCounter(name string, value int64) (int64, error) {
 	index := slices.IndexFunc(memStorage.Metrics, func(m models.Metrics) bool {
 		return m.MType == models.Counter && m.ID == name
 	})
@@ -30,7 +30,7 @@ func (memStorage *MemStorage) SaveCounter(name string, value int64) (int64, erro
 	}
 }
 
-func (memStorage *MemStorage) SaveGauge(name string, value float64) (float64, error) {
+func (memStorage *MemStorage) UpdateOrCreateGauge(name string, value float64) (float64, error) {
 	index := slices.IndexFunc(memStorage.Metrics, func(m models.Metrics) bool {
 		return m.MType == models.Gauge && m.ID == name
 	})
@@ -49,8 +49,66 @@ func (memStorage *MemStorage) SaveGauge(name string, value float64) (float64, er
 	}
 }
 
+func (memStorage *MemStorage) UpdateOrCreateMetric(metric models.Metrics) (models.Metrics, error) {
+	index := slices.IndexFunc(memStorage.Metrics, func(m models.Metrics) bool {
+		return m.MType == metric.MType && m.ID == metric.ID
+	})
+	if index != -1 {
+		foundMetric := memStorage.Metrics[index]
+		switch metric.MType {
+		case models.Counter:
+			*foundMetric.Delta += int64(*metric.Delta)
+			return foundMetric, nil
+		case models.Gauge:
+			*foundMetric.Value = float64(*metric.Value)
+			return foundMetric, nil
+		}
+	} else {
+		metricCopy := metric
+		if metric.Delta != nil {
+			metricCopy.Delta = new(int64)
+			*metricCopy.Delta = *metric.Delta
+		}
+		if metric.Value != nil {
+			metricCopy.Value = new(float64)
+			*metricCopy.Value = *metric.Value
+		}
+		memStorage.Metrics = append(memStorage.Metrics, metricCopy)
+	}
+	return metric, nil
+}
+
 func (memStorage *MemStorage) GetAllMetrics() []models.Metrics {
 	return memStorage.Metrics
+}
+
+func (memStorage *MemStorage) SaveMetrics(metrics []models.Metrics) error {
+	for _, metric := range metrics {
+		index := slices.IndexFunc(memStorage.Metrics, func(m models.Metrics) bool {
+			return m.MType == metric.MType && m.ID == metric.ID
+		})
+		if index != -1 {
+			foundMetric := memStorage.Metrics[index]
+			switch metric.MType {
+			case models.Counter:
+				*foundMetric.Delta = *metric.Delta
+			case models.Gauge:
+				*foundMetric.Value = *metric.Value
+			}
+		} else {
+			metricCopy := metric
+			if metric.Delta != nil {
+				metricCopy.Delta = new(int64)
+				*metricCopy.Delta = *metric.Delta
+			}
+			if metric.Value != nil {
+				metricCopy.Value = new(float64)
+				*metricCopy.Value = *metric.Value
+			}
+			memStorage.Metrics = append(memStorage.Metrics, metricCopy)
+		}
+	}
+	return nil
 }
 
 func (memStorage *MemStorage) GetCounter(name string) (int64, error) {
@@ -73,4 +131,14 @@ func (memStorage *MemStorage) GetGauge(name string) (float64, error) {
 	} else {
 		return 0, models.MetricGetError{Message: fmt.Sprintf("unknown metric %s", name)}
 	}
+}
+
+func (memStorage *MemStorage) GetMetricWithValue(metric *models.Metrics) (*models.Metrics, error) {
+	index := slices.IndexFunc(memStorage.Metrics, func(m models.Metrics) bool {
+		return m.MType == metric.MType && m.ID == metric.ID
+	})
+	if index != -1 {
+		return &memStorage.Metrics[index], nil
+	}
+	return nil, models.MetricGetError{Message: fmt.Sprintf("unknown metric %s", metric.ID)}
 }

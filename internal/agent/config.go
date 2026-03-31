@@ -1,10 +1,17 @@
 package agent
 
+import (
+	"fmt"
+	"strings"
+)
+
 type AgentConfig struct {
 	runtimeMetricNames []string
-	ServerAddress      string
-	ReportInterval     int
-	PollInterval       int
+	ServerAddress      string `env:"ADDRESS"`
+	ReportInterval     int    `env:"REPORT_INTERVAL"`
+	PollInterval       int    `env:"POLL_INTERVAL"`
+	LogLevel           string `env:"LOG_LEVEL"`
+	Environment        string `env:"AGENT_ENVIRONMENT"`
 }
 
 func GetDefaultAgentConfig() AgentConfig {
@@ -41,5 +48,13 @@ func GetDefaultAgentConfig() AgentConfig {
 	config.ServerAddress = "http://localhost:8080"
 	config.PollInterval = 2
 	config.ReportInterval = 10
+	config.LogLevel = "info"
+	config.Environment = "dev"
 	return config
+}
+
+func (agentConfig *AgentConfig) CheckAndCorrectServerAddress() {
+	if !strings.Contains(agentConfig.ServerAddress, "http") {
+		agentConfig.ServerAddress = fmt.Sprintf("http://%s", agentConfig.ServerAddress)
+	}
 }

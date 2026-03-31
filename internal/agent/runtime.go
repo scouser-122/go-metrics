@@ -1,6 +1,9 @@
 package agent
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"math/rand/v2"
 	"net/http"
@@ -10,6 +13,7 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
 )
 
@@ -109,7 +113,7 @@ func (agent *RuntimeMetricsAgent) CollectMetrics() {
 	*pollCountMetric.Delta = agent.pollCount
 	agent.writes <- WriteRequest{data: pollCountMetric}
 
-	fmt.Printf("Successfully collect %d metrics, poll count: %d\n", len(runtimeMetrics), agent.pollCount)
+	logger.Sugar.Infof("successfully collect %d metrics, poll count: %d", len(runtimeMetrics), agent.pollCount)
 }
 
 func (agent *RuntimeMetricsAgent) SendMetrics() {
@@ -121,16 +125,16 @@ func (agent *RuntimeMetricsAgent) SendMetrics() {
 
 	successSentCount := 0
 	for _, metric := range metrics {
-		metricValue, err := agent.SendMetric(client, &metric)
+		metricValue, err := agent.SendMetricJSON(client, &metric)
 		if err != nil {
-			fmt.Printf("Error sending metric %q: %s\n", metric.ID, err)
+			logger.Sugar.Errorf("error sending metric %q: %s", metric.ID, err)
 			continue
 		} else {
-			fmt.Printf("Metric %q sent successfully, value: %s\n", metric.ID, metricValue)
+			logger.Sugar.Infof("metric %q sent successfully, value: %s", metric.ID, metricValue)
 			successSentCount++
 		}
 	}
-	fmt.Printf("Successfully sent %d metrics\n", successSentCount)
+	logger.Sugar.Infof("successfully sent %d metrics", successSentCount)
 
 }
 
@@ -160,8 +164,39 @@ func (agent *RuntimeMetricsAgent) SendMetric(client *resty.Client, metric *model
 	return string(resp.Body()), nil
 }
 
+func (agent *RuntimeMetricsAgent) SendMetricJSON(client *resty.Client, metric *models.Metrics) (string, error) {
+	var url = fmt.Sprintf("%s/update/", agent.Config.ServerAddress)
+	var savedMetric models.Metrics
+	jsonData, err := json.Marshal(*metric)
+	if err != nil {
+		return "", err
+	}
+	var buf bytes.Buffer
+	gzw := gzip.NewWriter(&buf)
+	if _, err := gzw.Write(jsonData); err != nil {
+		return "", err
+	}
+	if err := gzw.Close(); err != nil {
+		return "", err
+	}
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		SetHeader("Content-Encoding", "gzip").
+		SetHeader("Accept-Encoding", "gzip").
+		SetBody(&buf).
+		SetResult(&savedMetric).
+		Post(url)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return "", fmt.Errorf("incorrect response status code: %d", resp.StatusCode())
+	}
+	return savedMetric.GetValueAsString()
+}
+
 func (agent *RuntimeMetricsAgent) CollectAndSendMetricsInLoop() {
-	fmt.Println("Start collecting metrics")
+	logger.Sugar.Info("start collecting metrics")
 	agent.Init()
 
 	var wg sync.WaitGroup
@@ -174,7 +209,7 @@ func (agent *RuntimeMetricsAgent) CollectAndSendMetricsInLoop() {
 
 	wg.Wait()
 
-	fmt.Println("Finish collecting metrics")
+	logger.Sugar.Info("finish collecting metrics")
 }
 
 func (agent *RuntimeMetricsAgent) CollectMetricsWorker(wg *sync.WaitGroup) {

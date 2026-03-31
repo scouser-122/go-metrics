@@ -1,11 +1,14 @@
 package handler
 
 import (
+	"bytes"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/scouser-122/go-metrics/internal/config"
 	"github.com/scouser-122/go-metrics/internal/repository"
 	"github.com/scouser-122/go-metrics/internal/service"
 	"github.com/stretchr/testify/assert"
@@ -21,6 +24,7 @@ type request struct {
 	method      string
 	contentType string
 	path        string
+	body        string
 }
 
 var updateTests = []struct {
@@ -115,18 +119,6 @@ var updateTests = []struct {
 		},
 	},
 	{
-		name: "negative test missing metric type",
-		request: request{
-			method:      http.MethodPost,
-			contentType: "text/plain",
-			path:        "/update",
-		},
-		want: want{
-			code:        http.StatusNotFound,
-			contentType: "text/plain",
-		},
-	},
-	{
 		name: "negative test incorrect metric type",
 		request: request{
 			method:      http.MethodPost,
@@ -143,22 +135,19 @@ var updateTests = []struct {
 func TestUpdateHandler(t *testing.T) {
 	for _, test := range updateTests {
 		t.Run(test.name, func(t *testing.T) {
+			config := config.DefaultServerConfig()
 			memStorage := repository.MemStorage{}
-
 			metricsService := service.MetricsService{
 				Storage: &memStorage,
 			}
-			updateHandler := UpdateHandler{
-				Service: metricsService,
-			}
-			obtainHandler := ReadHandler{
-				Service: metricsService,
-			}
+			metricsService.Initialize(&config)
+			handlers := InitializeHandlers(&metricsService)
 
-			r := CreateChiRouter(&updateHandler, &obtainHandler)
+			r := CreateChiRouter(&handlers)
 
 			request := httptest.NewRequest(test.request.method, test.request.path, nil)
 			request.Header.Add("Content-Type", test.request.contentType)
+
 			// создаём новый Recorder
 			w := httptest.NewRecorder()
 
@@ -172,7 +161,162 @@ func TestUpdateHandler(t *testing.T) {
 				bodyBytes, err := io.ReadAll(res.Body)
 				assert.Nil(t, err)
 				bodyString := string(bodyBytes)
-				assert.Equal(t, test.want.body, bodyString)
+				assert.Equal(t, test.want.body, strings.Replace(bodyString, "\n", "", -1))
+			}
+			res.Body.Close()
+		})
+	}
+}
+
+var updateJSONTests = []struct {
+	name    string
+	request request
+	want    want
+}{
+	{
+		name: "positive test update metric gauge",
+		request: request{
+			method:      http.MethodPost,
+			contentType: "application/json",
+			path:        "/update",
+			body:        `{"id":"LastGC","type":"gauge","value":123.456}`,
+		},
+		want: want{
+			code:        http.StatusOK,
+			contentType: "application/json",
+			body:        `{"id":"LastGC","type":"gauge","value":123.456}`,
+		},
+	},
+	{
+		name: "positive test update metric counter",
+		request: request{
+			method:      http.MethodPost,
+			contentType: "application/json",
+			path:        "/update",
+			body:        `{"id":"TotalAlloc","type":"counter","delta":123456}`,
+		},
+		want: want{
+			code:        http.StatusOK,
+			contentType: "application/json",
+			body:        `{"id":"TotalAlloc","type":"counter","delta":123456}`,
+		},
+	},
+	{
+		name: "negative test update bad json",
+		request: request{
+			method:      http.MethodPost,
+			contentType: "application/json",
+			path:        "/update",
+			body:        `{"id":"TotalAlloc","type":"coun`,
+		},
+		want: want{
+			code:        http.StatusBadRequest,
+			contentType: "application/json",
+		},
+	},
+	{
+		name: "negative test update incorrect metric type",
+		request: request{
+			method:      http.MethodPost,
+			contentType: "application/json",
+			path:        "/update",
+			body:        `{"id":"LastGC","type":"histogram","value":123.456}`,
+		},
+		want: want{
+			code:        http.StatusBadRequest,
+			contentType: "application/json",
+		},
+	},
+	{
+		name: "negative test update incorrect gauge metric format",
+		request: request{
+			method:      http.MethodPost,
+			contentType: "application/json",
+			path:        "/update",
+			body:        `{"id":"LastGC","type":"gauge","value":"123"}`,
+		},
+		want: want{
+			code:        http.StatusBadRequest,
+			contentType: "application/json",
+		},
+	},
+	{
+		name: "negative test update incorrect counter metric format",
+		request: request{
+			method:      http.MethodPost,
+			contentType: "application/json",
+			path:        "/update",
+			body:        `{"id":"LastGC","type":"counter","delta":123.456}`,
+		},
+		want: want{
+			code:        http.StatusBadRequest,
+			contentType: "application/json",
+		},
+	},
+	{
+		name: "negative test update counter missing delta",
+		request: request{
+			method:      http.MethodPost,
+			contentType: "application/json",
+			path:        "/update",
+			body:        `{"id":"LastGC","type":"counter","value":123.456}`,
+		},
+		want: want{
+			code:        http.StatusBadRequest,
+			contentType: "application/json",
+		},
+	},
+	{
+		name: "negative test update gauge missing value",
+		request: request{
+			method:      http.MethodPost,
+			contentType: "application/json",
+			path:        "/update",
+			body:        `{"id":"LastGC","type":"gauge","delta":123}`,
+		},
+		want: want{
+			code:        http.StatusBadRequest,
+			contentType: "application/json",
+		},
+	},
+}
+
+func TestUpdateJSONHandler(t *testing.T) {
+	for _, test := range updateJSONTests {
+		t.Run(test.name, func(t *testing.T) {
+			config := config.DefaultServerConfig()
+			memStorage := repository.MemStorage{}
+			metricsService := service.MetricsService{
+				Storage: &memStorage,
+			}
+			metricsService.Initialize(&config)
+			handlers := InitializeHandlers(&metricsService)
+
+			r := CreateChiRouter(&handlers)
+
+			var bodyReader io.Reader
+			if test.request.body != "" {
+				jsonData := []byte(test.request.body)
+				bodyReader = bytes.NewBuffer(jsonData)
+			}
+
+			request := httptest.NewRequest(test.request.method, test.request.path, bodyReader)
+			request.Header.Add("Content-Type", test.request.contentType)
+
+			// создаём новый Recorder
+			w := httptest.NewRecorder()
+
+			r.ServeHTTP(w, request)
+
+			res := w.Result()
+			// проверяем код ответа
+			assert.Equal(t, test.want.code, res.StatusCode)
+			assert.Equal(t, test.want.contentType, res.Header.Get("Content-Type"))
+			if res.StatusCode == http.StatusOK && test.want.body != "" {
+				bodyBytes, err := io.ReadAll(res.Body)
+				assert.Nil(t, err)
+				bodyString := string(bodyBytes)
+				assert.Equal(t, test.want.body, strings.Replace(bodyString, "\n", "", -1))
 			}
 			res.Body.Close()
 		})
