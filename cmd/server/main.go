@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/scouser-122/go-metrics/internal/config"
+	"github.com/scouser-122/go-metrics/internal/config/db"
 	"github.com/scouser-122/go-metrics/internal/handler"
 	"github.com/scouser-122/go-metrics/internal/logger"
 	"github.com/scouser-122/go-metrics/internal/repository"
@@ -18,6 +19,16 @@ func main() {
 		panic(err)
 	}
 
+	database := db.Database{
+		Config: db.DbConnectionConfig{
+			DSN: config.DbDataSourceName,
+		},
+	}
+	if err := database.Open(); err != nil {
+		logger.Sugar.Fatalf("cannot connect to database: %w", err)
+	}
+	defer database.Close()
+
 	memStorage := repository.MemStorage{}
 
 	metricsService := service.MetricsService{
@@ -25,7 +36,7 @@ func main() {
 	}
 	metricsService.Initialize(&config)
 
-	handlers := handler.InitializeHandlers(&metricsService)
+	handlers := handler.InitializeHandlers(&metricsService, &database)
 
 	r := handler.CreateChiRouter(&handlers)
 

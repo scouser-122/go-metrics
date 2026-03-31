@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/scouser-122/go-metrics/internal/config/db"
 	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
 	"github.com/scouser-122/go-metrics/internal/service"
@@ -18,8 +19,9 @@ import (
 )
 
 type ReadHandler struct {
-	Service *service.MetricsService
-	tmpl    *template.Template
+	Service  *service.MetricsService
+	Database *db.Database
+	tmpl     *template.Template
 }
 
 type MetricItem struct {
@@ -124,6 +126,21 @@ func (h *ReadHandler) ValueHandler(res http.ResponseWriter, req *http.Request) {
 func (h *ReadHandler) ValueJSONHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
 	h.processValueJSONRequest(res, req)
+}
+
+func (h *ReadHandler) PingDB(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "text/plain")
+	var status int
+	var result string
+	if h.Database.Ping() != nil {
+		status = http.StatusInternalServerError
+		result = "error"
+	} else {
+		status = http.StatusOK
+		result = "ok"
+	}
+	res.WriteHeader(status)
+	res.Write([]byte(result))
 }
 
 func (h *ReadHandler) processListRequest(res http.ResponseWriter, req *http.Request) {
