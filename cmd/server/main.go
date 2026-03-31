@@ -20,7 +20,7 @@ func main() {
 	}
 
 	database := db.Database{
-		Config: db.DbConnectionConfig{
+		Config: db.DBConnectionConfig{
 			DSN: config.DbDataSourceName,
 		},
 	}

@@ -1,5 +1,5 @@
 package db
 
-type DbConnectionConfig struct {
+type DBConnectionConfig struct {
 	DSN string
 }

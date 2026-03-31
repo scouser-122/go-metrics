@@ -9,7 +9,7 @@ import (
 )
 
 type Database struct {
-	Config DbConnectionConfig
+	Config DBConnectionConfig
 	pool   *pgxpool.Pool
 }
 
