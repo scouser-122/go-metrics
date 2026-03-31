@@ -39,7 +39,7 @@ func TestListHandler(t *testing.T) {
 	metricsService := service.MetricsService{
 		Storage: &memStorage,
 	}
-	handlers := InitializeHandlers(&metricsService)
+	handlers := InitializeHandlers(&metricsService, nil)
 	for _, test := range listTests {
 		t.Run(test.name, func(t *testing.T) {
 			r := CreateChiRouter(&handlers)
@@ -124,7 +124,7 @@ func TestValueHandler(t *testing.T) {
 	metricsService := service.MetricsService{
 		Storage: &memStorage,
 	}
-	handlers := InitializeHandlers(&metricsService)
+	handlers := InitializeHandlers(&metricsService, nil)
 	for _, test := range valueTests {
 		t.Run(test.name, func(t *testing.T) {
 			r := CreateChiRouter(&handlers)
@@ -257,7 +257,7 @@ func TestValueJSONHandler(t *testing.T) {
 				Storage: &memStorage,
 			}
 			metricsService.Initialize(&config)
-			handlers := InitializeHandlers(&metricsService)
+			handlers := InitializeHandlers(&metricsService, nil)
 
 			r := CreateChiRouter(&handlers)
 

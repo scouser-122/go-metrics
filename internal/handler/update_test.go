@@ -141,7 +141,7 @@ func TestUpdateHandler(t *testing.T) {
 				Storage: &memStorage,
 			}
 			metricsService.Initialize(&config)
-			handlers := InitializeHandlers(&metricsService)
+			handlers := InitializeHandlers(&metricsService, nil)
 
 			r := CreateChiRouter(&handlers)
 
@@ -290,7 +290,7 @@ func TestUpdateJSONHandler(t *testing.T) {
 				Storage: &memStorage,
 			}
 			metricsService.Initialize(&config)
-			handlers := InitializeHandlers(&metricsService)
+			handlers := InitializeHandlers(&metricsService, nil)
 
 			r := CreateChiRouter(&handlers)
 
