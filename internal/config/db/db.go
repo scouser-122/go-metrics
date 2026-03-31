@@ -14,6 +14,10 @@ type Database struct {
 }
 
 func (db *Database) Open() error {
+	if db.Config.DSN == "" {
+		return fmt.Errorf("connection string is empty")
+	}
+
 	var err error
 	config, err := pgxpool.ParseConfig(db.Config.DSN)
 	if err != nil {
@@ -42,5 +46,8 @@ func (db *Database) Close() {
 }
 
 func (db *Database) Ping() error {
-	return db.pool.Ping(context.Background())
+	if db.pool != nil {
+		return db.pool.Ping(context.Background())
+	}
+	return fmt.Errorf("database connection was not opened")
 }

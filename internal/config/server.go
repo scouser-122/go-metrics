@@ -7,7 +7,7 @@ type ServerConfig struct {
 	StoreInterval    int    `env:"STORE_INTERVAL"`
 	StorePath        string `env:"FILE_STORAGE_PATH"`
 	Restore          bool   `env:"RESTORE"`
-	DbDataSourceName string `env:"DATABASE_DSN"`
+	DBDataSourceName string `env:"DATABASE_DSN"`
 }
 
 func DefaultServerConfig() ServerConfig {
@@ -18,6 +18,6 @@ func DefaultServerConfig() ServerConfig {
 		StoreInterval:    -1,
 		StorePath:        "",
 		Restore:          false,
-		DbDataSourceName: "postgres://postgres:password@localhost:5432/mydb?sslmode=disable",
+		DBDataSourceName: "postgres://postgres:password@localhost:5432/mydb?sslmode=disable",
 	}
 }

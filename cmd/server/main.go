@@ -21,11 +21,11 @@ func main() {
 
 	database := db.Database{
 		Config: db.DBConnectionConfig{
-			DSN: config.DbDataSourceName,
+			DSN: config.DBDataSourceName,
 		},
 	}
 	if err := database.Open(); err != nil {
-		logger.Sugar.Fatalf("cannot connect to database: %w", err)
+		logger.Sugar.Errorf("cannot connect to database: %w", err)
 	}
 	defer database.Close()
 
