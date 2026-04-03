@@ -9,3 +9,7 @@
 - откатывать изменения при необходимости
 
 Тема миграций будет подробно изучаться дальше по курсу.
+
+Применение миграций: 
+
+migrate -database "postgres://user:password@localhost:5432/metrics_db?sslmode=disable" -path ./migrations up

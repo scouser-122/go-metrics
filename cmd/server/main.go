@@ -29,7 +29,9 @@ func main() {
 	}
 	defer database.Close()
 
-	memStorage := repository.MemStorage{}
+	memStorage := repository.DataBaseStorage{
+		Database: &database,
+	}
 
 	metricsService := service.MetricsService{
 		Storage: &memStorage,

@@ -32,7 +32,7 @@ func (h *UpdateHandler) processUpdateRequest(res http.ResponseWriter, req *http.
 	name := chi.URLParam(req, "name")
 	value := chi.URLParam(req, "value")
 
-	result, err := h.Service.SaveMetric(metricType, name, value)
+	result, err := h.Service.SaveMetric(req.Context(), metricType, name, value)
 	if err != nil {
 		if errors.As(err, &models.ErrIncorrectType) {
 			logger.Sugar.Errorf("metric type incorrect: %q", err.Error())
@@ -63,7 +63,7 @@ func (h *UpdateHandler) processUpdateJSONRequest(res http.ResponseWriter, req *h
 		return
 	}
 
-	result, err := h.Service.SaveMetricModel(&metric)
+	result, err := h.Service.SaveMetricModel(req.Context(), &metric)
 	if err != nil {
 		if errors.As(err, &models.ErrIncorrectType) {
 			logger.Sugar.Error("metric type incorrect ", zap.Error(err))
