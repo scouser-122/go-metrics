@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/scouser-122/go-metrics/internal/config/db"
@@ -22,7 +21,7 @@ func (storage *DataBaseStorage) UpdateOrCreateCounter(ctx context.Context, name 
 		name, models.Counter,
 	)
 	if err != nil {
-		return value, err
+		return value, models.MetricSaveError{Message: err.Error()}
 	}
 
 	metric := models.Metrics{
@@ -40,7 +39,7 @@ func (storage *DataBaseStorage) UpdateOrCreateCounter(ctx context.Context, name 
 			_, err = storage.Database.Exec(
 				ctx,
 				"INSERT INTO metrics (id,type,delta) VALUES ($1,$2,$3)",
-				metric.ID, metric.MType, *metric.Delta,
+				metric.ID, metric.MType, metric.Delta,
 			)
 			if err != nil {
 				return value, models.MetricSaveError{Message: err.Error()}
@@ -59,7 +58,7 @@ func (storage *DataBaseStorage) UpdateOrCreateCounter(ctx context.Context, name 
 		*metric.Delta, metric.ID, metric.MType,
 	)
 	if err != nil {
-		return value, err
+		return value, models.MetricSaveError{Message: err.Error()}
 	}
 
 	return *metric.Delta, nil
@@ -72,7 +71,7 @@ func (storage *DataBaseStorage) UpdateOrCreateGauge(ctx context.Context, name st
 		name, models.Gauge,
 	)
 	if err != nil {
-		return value, err
+		return value, models.MetricSaveError{Message: err.Error()}
 	}
 
 	metric := models.Metrics{}
@@ -88,7 +87,7 @@ func (storage *DataBaseStorage) UpdateOrCreateGauge(ctx context.Context, name st
 			_, err = storage.Database.Exec(
 				ctx,
 				"INSERT INTO metrics (id,type,value) VALUES ($1,$2,$3)",
-				metric.ID, metric.MType, *metric.Value,
+				metric.ID, metric.MType, metric.Value,
 			)
 			if err != nil {
 				return value, models.MetricSaveError{Message: err.Error()}
@@ -105,7 +104,7 @@ func (storage *DataBaseStorage) UpdateOrCreateGauge(ctx context.Context, name st
 		value, metric.ID, metric.MType,
 	)
 	if err != nil {
-		return value, err
+		return value, models.MetricSaveError{Message: err.Error()}
 	}
 
 	return value, nil
@@ -118,7 +117,7 @@ func (storage *DataBaseStorage) UpdateOrCreateMetric(ctx context.Context, metric
 		metric.ID, metric.MType,
 	)
 	if err != nil {
-		return metric, err
+		return metric, models.MetricSaveError{Message: err.Error()}
 	}
 
 	dbMetric := models.Metrics{}
@@ -128,7 +127,7 @@ func (storage *DataBaseStorage) UpdateOrCreateMetric(ctx context.Context, metric
 			_, err = storage.Database.Exec(
 				ctx,
 				"INSERT INTO metrics (id,type,delta,value) VALUES ($1,$2,$3,$4)",
-				metric.ID, metric.MType, *metric.Delta, *metric.Value,
+				metric.ID, metric.MType, metric.Delta, metric.Value,
 			)
 			if err != nil {
 				return metric, models.MetricSaveError{Message: err.Error()}
@@ -148,7 +147,7 @@ func (storage *DataBaseStorage) UpdateOrCreateMetric(ctx context.Context, metric
 			*metric.Delta, metric.ID, metric.MType,
 		)
 		if err != nil {
-			return metric, err
+			return metric, models.MetricSaveError{Message: err.Error()}
 		}
 	case models.Gauge:
 		_, err = storage.Database.Exec(
@@ -157,7 +156,7 @@ func (storage *DataBaseStorage) UpdateOrCreateMetric(ctx context.Context, metric
 			*metric.Value, metric.ID, metric.MType,
 		)
 		if err != nil {
-			return metric, err
+			return metric, models.MetricSaveError{Message: err.Error()}
 		}
 	}
 
@@ -261,13 +260,58 @@ func (storage *DataBaseStorage) SaveMetrics(ctx context.Context, metrics []model
 }
 
 func (storage *DataBaseStorage) GetCounter(ctx context.Context, name string) (int64, error) {
-	return 0, models.MetricGetError{Message: fmt.Sprintf("unknown metric %s", name)}
+	row, err := storage.Database.QueryRow(
+		ctx,
+		"SELECT id, type, delta FROM metrics WHERE id = $1 AND type = $2",
+		name, models.Counter,
+	)
+	if err != nil {
+		return 0, models.MetricGetError{Message: err.Error()}
+	}
+
+	metric := models.Metrics{}
+	err = row.Scan(&metric.ID, &metric.MType, &metric.Delta)
+	if err != nil {
+		return 0, models.MetricGetError{Message: err.Error()}
+	}
+
+	return *metric.Delta, nil
 }
 
 func (storage *DataBaseStorage) GetGauge(ctx context.Context, name string) (float64, error) {
-	return 0, models.MetricGetError{Message: fmt.Sprintf("unknown metric %s", name)}
+	row, err := storage.Database.QueryRow(
+		ctx,
+		"SELECT id, type, value FROM metrics WHERE id = $1 AND type = $2",
+		name, models.Gauge,
+	)
+	if err != nil {
+		return 0, models.MetricGetError{Message: err.Error()}
+	}
+
+	metric := models.Metrics{}
+	err = row.Scan(&metric.ID, &metric.MType, &metric.Value)
+	if err != nil {
+		return 0, models.MetricGetError{Message: err.Error()}
+	}
+
+	return *metric.Value, nil
 }
 
 func (storage *DataBaseStorage) GetMetricWithValue(ctx context.Context, metric *models.Metrics) (*models.Metrics, error) {
-	return nil, models.MetricGetError{Message: fmt.Sprintf("unknown metric %s", metric.ID)}
+	row, err := storage.Database.QueryRow(
+		ctx,
+		"SELECT id, type, delta, value FROM metrics WHERE id = $1 AND type = $2",
+		metric.ID, metric.MType,
+	)
+	if err != nil {
+		return nil, models.MetricGetError{Message: err.Error()}
+	}
+
+	metricDb := models.Metrics{}
+	err = row.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value)
+	if err != nil {
+		return nil, models.MetricGetError{Message: err.Error()}
+	}
+
+	return &metricDb, nil
 }

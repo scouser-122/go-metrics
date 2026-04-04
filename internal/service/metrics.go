@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/scouser-122/go-metrics/internal/config"
+	"github.com/scouser-122/go-metrics/internal/config/db"
 	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
 	"github.com/scouser-122/go-metrics/internal/repository"
@@ -18,11 +19,35 @@ type MetricsService struct {
 	fsStorage    repository.MetricsStorage
 }
 
-func (service *MetricsService) Initialize(config *config.ServerConfig) {
+func (service *MetricsService) Initialize(config *config.ServerConfig, db *db.Database) {
 	service.serverConfig = config
-	service.fsStorage = repository.CreateFileSystemStorage(config)
-	service.restoreMetricsIfRequired()
-	service.storeMetricsInFsIfRequired()
+	service.createStorage(config, db)
+}
+
+func (service *MetricsService) createStorage(config *config.ServerConfig, db *db.Database) {
+	if err := db.Ping(); err == nil {
+		logger.Sugar.Infof("use database storage")
+		service.Storage = &repository.DataBaseStorage{
+			Database: db,
+		}
+		if config.StorePath != "" {
+			logger.Sugar.Infof("additionaly use filesystem storage")
+			service.fsStorage = repository.CreateFileSystemStorage(config)
+			service.restoreMetricsIfRequired()
+			service.storeMetricsInFsIfRequired()
+		}
+		return
+	}
+	if config.StorePath != "" {
+		logger.Sugar.Infof("use filesystem storage")
+		service.fsStorage = repository.CreateFileSystemStorage(config)
+		service.Storage = service.fsStorage
+		service.restoreMetricsIfRequired()
+		service.storeMetricsInFsIfRequired()
+		return
+	}
+	logger.Sugar.Infof("use in-memory storage")
+	service.Storage = &repository.MemStorage{}
 }
 
 func (service *MetricsService) SaveMetric(ctx context.Context, metricType string, name string, value string) (string, error) {
@@ -45,11 +70,6 @@ func (service *MetricsService) SaveMetric(ctx context.Context, metricType string
 		if err != nil {
 			return result, err
 		}
-		if service.serverConfig.StoreInterval == 0 {
-			if _, err := service.fsStorage.UpdateOrCreateCounter(ctx, name, counterValue); err != nil {
-				return result, err
-			}
-		}
 		result = strconv.FormatInt(saveResult, 10)
 
 	case models.Gauge:
@@ -62,11 +82,6 @@ func (service *MetricsService) SaveMetric(ctx context.Context, metricType string
 		saveResult, err := service.Storage.UpdateOrCreateGauge(ctx, name, gaugeValue)
 		if err != nil {
 			return result, err
-		}
-		if service.serverConfig.StoreInterval == 0 {
-			if _, err := service.fsStorage.UpdateOrCreateGauge(ctx, name, gaugeValue); err != nil {
-				return result, err
-			}
 		}
 		result = strconv.FormatFloat(saveResult, 'f', -1, 64)
 	}
@@ -95,11 +110,6 @@ func (service *MetricsService) SaveMetricModel(ctx context.Context, metric *mode
 		}
 	}
 	result, err := service.Storage.UpdateOrCreateMetric(ctx, *metric)
-	if service.serverConfig.StoreInterval == 0 {
-		if result, err := service.fsStorage.UpdateOrCreateMetric(ctx, *metric); err != nil {
-			return result, err
-		}
-	}
 	return result, err
 }
 

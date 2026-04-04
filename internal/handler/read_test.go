@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/scouser-122/go-metrics/internal/config"
+	"github.com/scouser-122/go-metrics/internal/config/db"
 	models "github.com/scouser-122/go-metrics/internal/model"
 	"github.com/scouser-122/go-metrics/internal/repository"
 	"github.com/scouser-122/go-metrics/internal/service"
@@ -248,15 +250,9 @@ func TestValueJSONHandler(t *testing.T) {
 	for _, test := range valueJSONTests {
 		t.Run(test.name, func(t *testing.T) {
 			config := config.DefaultServerConfig()
-			memStorage := repository.MemStorage{}
-			if len(test.metrics) > 0 {
-				memStorage.Metrics = append(memStorage.Metrics, test.metrics...)
-			}
-
-			metricsService := service.MetricsService{
-				Storage: &memStorage,
-			}
-			metricsService.Initialize(&config)
+			metricsService := service.MetricsService{}
+			metricsService.Initialize(&config, &db.Database{})
+			metricsService.Storage.SaveMetrics(context.Background(), test.metrics)
 			handlers := InitializeHandlers(&metricsService, nil)
 
 			r := CreateChiRouter(&handlers)
