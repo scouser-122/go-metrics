@@ -307,11 +307,11 @@ func (storage *DataBaseStorage) GetMetricWithValue(ctx context.Context, metric *
 		return nil, models.MetricGetError{Message: err.Error()}
 	}
 
-	metricDb := models.Metrics{}
+	metricDB := models.Metrics{}
 	err = row.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value)
 	if err != nil {
 		return nil, models.MetricGetError{Message: err.Error()}
 	}
 
-	return &metricDb, nil
+	return &metricDB, nil
 }
