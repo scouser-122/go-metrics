@@ -120,3 +120,10 @@ func (db *Database) QueryRow(ctx context.Context, query string, args ...any) (pg
 	}
 	return nil, fmt.Errorf("database connection was not opened")
 }
+
+func (db *Database) Begin(ctx context.Context) (pgx.Tx, error) {
+	if db.pool != nil {
+		return db.pool.Begin(ctx)
+	}
+	return nil, fmt.Errorf("database connection was not opened")
+}

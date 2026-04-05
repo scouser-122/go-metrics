@@ -79,6 +79,17 @@ func (memStorage *MemStorage) UpdateOrCreateMetric(ctx context.Context, metric m
 	return metric, nil
 }
 
+func (memStorage *MemStorage) UpdateOrCreateMetrics(ctx context.Context, metrics []models.Metrics) (int64, error) {
+	count := int64(0)
+	for _, m := range metrics {
+		_, err := memStorage.UpdateOrCreateMetric(ctx, m)
+		if err == nil {
+			count++
+		}
+	}
+	return count, nil
+}
+
 func (memStorage *MemStorage) GetAllMetrics(ctx context.Context) []models.Metrics {
 	return memStorage.Metrics
 }

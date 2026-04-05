@@ -50,6 +50,17 @@ func (storage *FileSystemStorage) UpdateOrCreateMetric(ctx context.Context, metr
 	return metric, err
 }
 
+func (storage *FileSystemStorage) UpdateOrCreateMetrics(ctx context.Context, metrics []models.Metrics) (int64, error) {
+	count := int64(0)
+	for _, m := range metrics {
+		_, err := storage.UpdateOrCreateMetric(ctx, m)
+		if err == nil {
+			count++
+		}
+	}
+	return count, nil
+}
+
 func (storage *FileSystemStorage) GetAllMetrics(ctx context.Context) []models.Metrics {
 	if len(storage.MemoryStorage.Metrics) == 0 {
 		storage.loadMetricsFromFS()

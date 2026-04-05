@@ -123,19 +123,25 @@ func (agent *RuntimeMetricsAgent) SendMetrics() {
 	agent.reads <- ReadRequest{resp: respChan}
 	metrics := <-respChan
 
-	successSentCount := 0
-	for _, metric := range metrics {
-		metricValue, err := agent.SendMetricJSON(client, &metric)
-		if err != nil {
-			logger.Sugar.Errorf("error sending metric %q: %s", metric.ID, err)
-			continue
-		} else {
-			logger.Sugar.Infof("metric %q sent successfully, value: %s", metric.ID, metricValue)
-			successSentCount++
-		}
-	}
-	logger.Sugar.Infof("successfully sent %d metrics", successSentCount)
+	// successSentCount := 0
+	// for _, metric := range metrics {
+	// 	metricValue, err := agent.SendMetricJSON(client, &metric)
+	// 	if err != nil {
+	// 		logger.Sugar.Errorf("error sending metric %q: %s", metric.ID, err)
+	// 		continue
+	// 	} else {
+	// 		logger.Sugar.Infof("metric %q sent successfully, value: %s", metric.ID, metricValue)
+	// 		successSentCount++
+	// 	}
+	// }
+	// logger.Sugar.Infof("successfully sent %d metrics", successSentCount)
 
+	response, err := agent.SendMetricsJSON(client, metrics)
+	if err != nil {
+		logger.Sugar.Errorf("error sending metrics: %s", err)
+	} else {
+		logger.Sugar.Info(response)
+	}
 }
 
 func (agent *RuntimeMetricsAgent) SendMetric(client *resty.Client, metric *models.Metrics) (string, error) {
@@ -165,7 +171,7 @@ func (agent *RuntimeMetricsAgent) SendMetric(client *resty.Client, metric *model
 }
 
 func (agent *RuntimeMetricsAgent) SendMetricJSON(client *resty.Client, metric *models.Metrics) (string, error) {
-	var url = fmt.Sprintf("%s/update/", agent.Config.ServerAddress)
+	var url = fmt.Sprintf("%s/update", agent.Config.ServerAddress)
 	var savedMetric models.Metrics
 	jsonData, err := json.Marshal(*metric)
 	if err != nil {
@@ -193,6 +199,37 @@ func (agent *RuntimeMetricsAgent) SendMetricJSON(client *resty.Client, metric *m
 		return "", fmt.Errorf("incorrect response status code: %d", resp.StatusCode())
 	}
 	return savedMetric.GetValueAsString()
+}
+
+func (agent *RuntimeMetricsAgent) SendMetricsJSON(client *resty.Client, metrics []models.Metrics) (string, error) {
+	var url = fmt.Sprintf("%s/update/", agent.Config.ServerAddress)
+	jsonData, err := json.Marshal(metrics)
+	if err != nil {
+		return "", err
+	}
+	var buf bytes.Buffer
+	gzw := gzip.NewWriter(&buf)
+	if _, err := gzw.Write(jsonData); err != nil {
+		return "", err
+	}
+	if err := gzw.Close(); err != nil {
+		return "", err
+	}
+	response := models.ResponsePayload{}
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		SetHeader("Content-Encoding", "gzip").
+		SetHeader("Accept-Encoding", "gzip").
+		SetBody(&buf).
+		SetResult(&response).
+		Post(url)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return "", fmt.Errorf("incorrect response status code: %d", resp.StatusCode())
+	}
+	return response.Message, nil
 }
 
 func (agent *RuntimeMetricsAgent) CollectAndSendMetricsInLoop() {

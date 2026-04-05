@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -25,6 +26,11 @@ func (h *UpdateHandler) UpdateHandler(res http.ResponseWriter, req *http.Request
 func (h *UpdateHandler) UpdateJSONHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("content-type", "application/json")
 	h.processUpdateJSONRequest(res, req)
+}
+
+func (h *UpdateHandler) UpdateJSONArrayHandler(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("content-type", "application/json")
+	h.processUpdateJSONArrayRequest(res, req)
 }
 
 func (h *UpdateHandler) processUpdateRequest(res http.ResponseWriter, req *http.Request) {
@@ -86,6 +92,51 @@ func (h *UpdateHandler) processUpdateJSONRequest(res http.ResponseWriter, req *h
 
 	res.Header().Set("Content-Type", "application/json")
 	logger.Sugar.Info("metric saved successfully ", zap.String("metric", result.String()))
+	res.WriteHeader(http.StatusOK)
+	res.Write(buf.Bytes())
+}
+
+func (h *UpdateHandler) processUpdateJSONArrayRequest(res http.ResponseWriter, req *http.Request) {
+	var metrics []models.Metrics
+	dec := json.NewDecoder(req.Body)
+	if err := dec.Decode(&metrics); err != nil {
+		logger.Log.Error("cannot decode request JSON body ", zap.Error(err))
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	count, err := h.Service.SaveMetricsModel(req.Context(), metrics)
+	if err != nil {
+		if errors.As(err, &models.ErrIncorrectType) {
+			logger.Sugar.Error("metrics type incorrect ", zap.Error(err))
+			res.WriteHeader(http.StatusBadRequest)
+			return
+		} else if errors.As(err, &models.ErrIncorrectFormat) {
+			logger.Sugar.Errorf("metrics format incorrect: %q", err.Error())
+			res.WriteHeader(http.StatusBadRequest)
+			return
+		} else if errors.As(err, &models.ErrSaveMetric) {
+			logger.Sugar.Errorf("metrics save failed: %q", err.Error())
+			res.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+
+	response := models.ResponsePayload{
+		Status:  "ok",
+		Message: fmt.Sprintf("successfully saved %d metrics", count),
+	}
+
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	if err := enc.Encode(response); err != nil {
+		logger.Log.Error("error encoding response ", zap.Error(err))
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	res.Header().Set("Content-Type", "application/json")
+	logger.Sugar.Info("metrics saved successfully ", zap.Int64("count", count))
 	res.WriteHeader(http.StatusOK)
 	res.Write(buf.Bytes())
 }

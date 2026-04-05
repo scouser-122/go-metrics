@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"slices"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/scouser-122/go-metrics/internal/config/db"
@@ -161,6 +162,75 @@ func (storage *DataBaseStorage) UpdateOrCreateMetric(ctx context.Context, metric
 	}
 
 	return metric, nil
+}
+
+func (storage *DataBaseStorage) UpdateOrCreateMetrics(ctx context.Context, metrics []models.Metrics) (int64, error) {
+	count := int64(0)
+	tx, err := storage.Database.Begin(ctx)
+	if err != nil {
+		return 0, models.MetricSaveError{Message: err.Error()}
+	}
+	defer tx.Rollback(ctx)
+	existingMetrics := []models.Metrics{}
+	nonExistingMetrics := []models.Metrics{}
+	for _, m := range metrics {
+		row := tx.QueryRow(
+			ctx,
+			"SELECT delta, value FROM metrics WHERE id = $1 AND type = $2",
+			m.ID, m.MType,
+		)
+		if err != nil {
+			if !errors.Is(err, pgx.ErrNoRows) {
+				return 0, models.MetricSaveError{Message: err.Error()}
+			}
+		}
+		dbMetric := models.Metrics{}
+		err = row.Scan(&dbMetric.Delta, &dbMetric.Value)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				if slices.ContainsFunc(nonExistingMetrics, func(fm models.Metrics) bool {
+					return fm.ID == m.ID && fm.MType == m.MType
+				}) {
+					existingMetrics = append(existingMetrics, m)
+				} else {
+					nonExistingMetrics = append(nonExistingMetrics, m)
+				}
+			} else {
+				return 0, models.MetricSaveError{Message: err.Error()}
+			}
+		} else {
+			if m.MType == models.Counter {
+				*m.Delta += *dbMetric.Delta
+			}
+			existingMetrics = append(existingMetrics, m)
+		}
+	}
+	for _, m := range existingMetrics {
+		_, err = tx.Exec(
+			ctx,
+			"UPDATE metrics SET delta = $1, value = $2 WHERE id = $3 AND type = $4",
+			m.Delta, m.Value, m.ID, m.MType,
+		)
+		if err != nil {
+			return 0, models.MetricSaveError{Message: err.Error()}
+		}
+		count++
+	}
+	for _, m := range nonExistingMetrics {
+		_, err = tx.Exec(
+			ctx,
+			"INSERT INTO metrics (id,type,delta,value) VALUES ($1,$2,$3,$4)",
+			m.ID, m.MType, m.Delta, m.Value,
+		)
+		if err != nil {
+			return 0, models.MetricSaveError{Message: err.Error()}
+		}
+		count++
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, models.MetricSaveError{Message: err.Error()}
+	}
+	return count, nil
 }
 
 func (storage *DataBaseStorage) GetAllMetrics(ctx context.Context) []models.Metrics {

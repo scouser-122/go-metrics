@@ -113,6 +113,33 @@ func (service *MetricsService) SaveMetricModel(ctx context.Context, metric *mode
 	return result, err
 }
 
+func (service *MetricsService) SaveMetricsModel(ctx context.Context, metrics []models.Metrics) (int64, error) {
+	var result int64
+	for _, m := range metrics {
+		switch m.MType {
+		case models.Counter:
+			if m.Delta == nil {
+				return 0, models.MetricFormatError{
+					Message: fmt.Sprintf("Metric counter %s missing delta", m.ID),
+				}
+			}
+		case models.Gauge:
+			if m.Value == nil {
+				return 0, models.MetricFormatError{
+					Message: fmt.Sprintf("Metric gauge %s missing value", m.ID),
+				}
+			}
+		default:
+			return 0, models.IncorrectMetricType{
+				Message: fmt.Sprintf("Metric type incorrect: %s %q", m.ID, m.MType),
+			}
+		}
+	}
+	var err error
+	result, err = service.Storage.UpdateOrCreateMetrics(ctx, metrics)
+	return result, err
+}
+
 func (service *MetricsService) GetAllMetrics(ctx context.Context) []models.Metrics {
 	return service.Storage.GetAllMetrics(ctx)
 }
