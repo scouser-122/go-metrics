@@ -202,7 +202,7 @@ func (agent *RuntimeMetricsAgent) SendMetricJSON(client *resty.Client, metric *m
 }
 
 func (agent *RuntimeMetricsAgent) SendMetricsJSON(client *resty.Client, metrics []models.Metrics) (string, error) {
-	var url = fmt.Sprintf("%s/update/", agent.Config.ServerAddress)
+	var url = fmt.Sprintf("%s/updates", agent.Config.ServerAddress)
 	jsonData, err := json.Marshal(metrics)
 	if err != nil {
 		return "", err
