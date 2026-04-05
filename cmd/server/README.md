@@ -9,6 +9,6 @@ go build -o server && ./server \
 -l info \
 -e dev \
 -i 2 \
+-d="postgres://postgres:123@localhost:5432/metrics_db?sslmode=disable" \
 -f="./metrics_data.json"  \
--r \
--d="postgres://postgres:123@localhost:5432/metrics_db?sslmode=disable"
+-r

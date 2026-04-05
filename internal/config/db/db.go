@@ -54,8 +54,11 @@ func (db *Database) Open() error {
 
 func (db *Database) runMigrations() error {
 	path, err := getMigrationsPath()
+	if err != nil {
+		return err
+	}
 	m, err := migrate.New(
-		path, // Path to migration files
+		path,
 		db.Config.DSN,
 	)
 	if err != nil {
@@ -72,7 +75,6 @@ func (db *Database) runMigrations() error {
 }
 
 func getMigrationsPath() (string, error) {
-	// Get the directory of the executable
 	execPath, err := os.Executable()
 	if err != nil {
 		return "", err
@@ -80,31 +82,10 @@ func getMigrationsPath() (string, error) {
 
 	execDir := filepath.Dir(execPath)
 
-	// Construct absolute path to migrations folder
 	migrationsPath := filepath.Join(execDir, "../../migrations")
 
-	// Convert to URL format
 	return "file://" + migrationsPath, nil
 }
-
-// func (db *Database) RunMigrations() error {
-// 	database, err := sql.Open("postgres", db.Config.DSN)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer database.Close()
-
-// 	if err := goose.SetDialect("postgres"); err != nil {
-// 		return err
-// 	}
-
-// 	if err := goose.Up(database, "migrations"); err != nil {
-// 		return err
-// 	}
-
-// 	log.Println("Migrations completed successfully")
-// 	return nil
-// }
 
 func (db *Database) Close() {
 	if db.pool != nil {
