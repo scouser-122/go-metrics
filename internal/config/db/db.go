@@ -3,7 +3,12 @@ package db
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -38,8 +43,68 @@ func (db *Database) Open() error {
 	}
 
 	logger.Sugar.Info("successfully connected to DB")
+
+	err = db.runMigrations()
+	if err != nil {
+		return fmt.Errorf("failed to run migrations: %w", err)
+	}
+
 	return nil
 }
+
+func (db *Database) runMigrations() error {
+	path, err := getMigrationsPath()
+	m, err := migrate.New(
+		path, // Path to migration files
+		db.Config.DSN,
+	)
+	if err != nil {
+		return err
+	}
+	defer m.Close()
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return err
+	}
+
+	logger.Sugar.Info("DB migrations completed successfully")
+	return nil
+}
+
+func getMigrationsPath() (string, error) {
+	// Get the directory of the executable
+	execPath, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+
+	execDir := filepath.Dir(execPath)
+
+	// Construct absolute path to migrations folder
+	migrationsPath := filepath.Join(execDir, "../../migrations")
+
+	// Convert to URL format
+	return "file://" + migrationsPath, nil
+}
+
+// func (db *Database) RunMigrations() error {
+// 	database, err := sql.Open("postgres", db.Config.DSN)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer database.Close()
+
+// 	if err := goose.SetDialect("postgres"); err != nil {
+// 		return err
+// 	}
+
+// 	if err := goose.Up(database, "migrations"); err != nil {
+// 		return err
+// 	}
+
+// 	log.Println("Migrations completed successfully")
+// 	return nil
+// }
 
 func (db *Database) Close() {
 	if db.pool != nil {
