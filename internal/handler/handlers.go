@@ -36,7 +36,12 @@ func InitializeHandlers(service *service.MetricsService, db *db.Database) []Hand
 	})
 	handlers = append(handlers, Handler{
 		Method:         http.MethodPost,
-		URLPathPattern: "/update/",
+		URLPathPattern: "/updates/",
+		HandlerFn:      updateHandler.UpdateJSONArrayHandler,
+	})
+	handlers = append(handlers, Handler{
+		Method:         http.MethodPost,
+		URLPathPattern: "/updates",
 		HandlerFn:      updateHandler.UpdateJSONArrayHandler,
 	})
 

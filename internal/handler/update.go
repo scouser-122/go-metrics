@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -61,13 +60,13 @@ func (h *UpdateHandler) processUpdateRequest(res http.ResponseWriter, req *http.
 	res.Write([]byte(result))
 }
 
-func (h *UpdateHandler) processUpdateJSONRequest(res http.ResponseWriter, req *http.Request) error {
+func (h *UpdateHandler) processUpdateJSONRequest(res http.ResponseWriter, req *http.Request) {
 	var metric models.Metrics
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&metric); err != nil {
 		logger.Log.Error("cannot decode request JSON body ", zap.Error(err))
 		res.WriteHeader(http.StatusBadRequest)
-		return err
+		return
 	}
 
 	result, err := h.Service.SaveMetricModel(req.Context(), &metric)
@@ -75,11 +74,11 @@ func (h *UpdateHandler) processUpdateJSONRequest(res http.ResponseWriter, req *h
 		if errors.As(err, &models.ErrIncorrectType) {
 			logger.Sugar.Error("metric type incorrect ", zap.Error(err))
 			res.WriteHeader(http.StatusBadRequest)
-			return err
+			return
 		} else if errors.As(err, &models.ErrIncorrectFormat) {
 			logger.Sugar.Errorf("metric format incorrect: %q", err.Error())
 			res.WriteHeader(http.StatusBadRequest)
-			return err
+			return
 		}
 	}
 
@@ -88,25 +87,19 @@ func (h *UpdateHandler) processUpdateJSONRequest(res http.ResponseWriter, req *h
 	if err := enc.Encode(result); err != nil {
 		logger.Log.Error("error encoding response ", zap.Error(err))
 		res.WriteHeader(http.StatusInternalServerError)
-		return err
+		return
 	}
 
 	res.Header().Set("Content-Type", "application/json")
 	logger.Sugar.Info("metric saved successfully ", zap.String("metric", result.String()))
 	res.WriteHeader(http.StatusOK)
 	res.Write(buf.Bytes())
-	return nil
 }
 
 func (h *UpdateHandler) processUpdateJSONArrayRequest(res http.ResponseWriter, req *http.Request) {
 	var metrics []models.Metrics
-	bodyBytes, _ := io.ReadAll(req.Body)
-	if err := json.Unmarshal(bodyBytes, &metrics); err != nil {
-		req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-		// try to process request as single metric
-		if err := h.processUpdateJSONRequest(res, req); err == nil {
-			return
-		}
+	dec := json.NewDecoder(req.Body)
+	if err := dec.Decode(&metrics); err != nil {
 		logger.Log.Error("cannot decode request JSON body ", zap.Error(err))
 		res.WriteHeader(http.StatusBadRequest)
 		return
