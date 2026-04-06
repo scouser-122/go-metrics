@@ -127,8 +127,7 @@ func (db *Database) Exec(ctx context.Context, query string, args ...any) (pgconn
 func (db *Database) Query(ctx context.Context, query string, args ...any) (pgx.Rows, error) {
 	if db.pool != nil {
 		var rows pgx.Rows
-		var err error
-		err = config.DataBaseRequestRetry(
+		err := config.DataBaseRequestRetry(
 			ctx,
 			db.Config.RetryConfig,
 			func() error {
