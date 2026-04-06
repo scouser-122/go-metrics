@@ -25,7 +25,7 @@ func (service *MetricsService) Initialize(config *config.ServerConfig, db *db.Da
 }
 
 func (service *MetricsService) createStorage(config *config.ServerConfig, db *db.Database) {
-	if err := db.Ping(); err == nil {
+	if err := db.Ping(context.Background()); err == nil {
 		logger.Sugar.Infof("use database storage")
 		service.Storage = &repository.DataBaseStorage{
 			Database: db,

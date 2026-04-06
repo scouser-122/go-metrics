@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/scouser-122/go-metrics/internal/config"
 	"github.com/scouser-122/go-metrics/internal/logger"
 )
 
@@ -93,23 +94,51 @@ func (db *Database) Close() {
 	}
 }
 
-func (db *Database) Ping() error {
+func (db *Database) Ping(ctx context.Context) error {
 	if db.pool != nil {
-		return db.pool.Ping(context.Background())
+		return config.DataBaseRequestRetry(
+			ctx,
+			db.Config.RetryConfig,
+			func() error {
+				return db.pool.Ping(ctx)
+			},
+		)
 	}
 	return fmt.Errorf("database connection was not opened")
 }
 
 func (db *Database) Exec(ctx context.Context, query string, args ...any) (pgconn.CommandTag, error) {
 	if db.pool != nil {
-		return db.pool.Exec(ctx, query, args...)
+		var commandTag pgconn.CommandTag
+		var err error
+		err = config.DataBaseRequestRetry(
+			ctx,
+			db.Config.RetryConfig,
+			func() error {
+				var err error
+				commandTag, err = db.pool.Exec(ctx, query, args...)
+				return err
+			},
+		)
+		return commandTag, err
 	}
 	return pgconn.CommandTag{}, fmt.Errorf("database connection was not opened")
 }
 
 func (db *Database) Query(ctx context.Context, query string, args ...any) (pgx.Rows, error) {
 	if db.pool != nil {
-		return db.pool.Query(ctx, query, args...)
+		var rows pgx.Rows
+		var err error
+		err = config.DataBaseRequestRetry(
+			ctx,
+			db.Config.RetryConfig,
+			func() error {
+				var err error
+				rows, err = db.pool.Query(ctx, query, args...)
+				return err
+			},
+		)
+		return rows, err
 	}
 	return nil, fmt.Errorf("database connection was not opened")
 }
@@ -123,7 +152,18 @@ func (db *Database) QueryRow(ctx context.Context, query string, args ...any) (pg
 
 func (db *Database) Begin(ctx context.Context) (pgx.Tx, error) {
 	if db.pool != nil {
-		return db.pool.Begin(ctx)
+		var tx pgx.Tx
+		var err error
+		err = config.DataBaseRequestRetry(
+			ctx,
+			db.Config.RetryConfig,
+			func() error {
+				var err error
+				tx, err = db.pool.Begin(ctx)
+				return err
+			},
+		)
+		return tx, err
 	}
 	return nil, fmt.Errorf("database connection was not opened")
 }

@@ -11,16 +11,17 @@ import (
 )
 
 func main() {
-	config := config.DefaultServerConfig()
-	parseFlags(&config)
-	parseEnvVariables(&config)
-	if err := logger.Initialize(config.LogLevel, config.Environment); err != nil {
+	serverConfig := config.DefaultServerConfig()
+	parseFlags(&serverConfig)
+	parseEnvVariables(&serverConfig)
+	if err := logger.Initialize(serverConfig.LogLevel, serverConfig.Environment); err != nil {
 		panic(err)
 	}
 
 	database := db.Database{
 		Config: db.DBConnectionConfig{
-			DSN: config.DBDataSourceName,
+			DSN:         serverConfig.DBDataSourceName,
+			RetryConfig: config.DefaultRetryConfig(),
 		},
 	}
 	if err := database.Open(); err != nil {
@@ -29,12 +30,12 @@ func main() {
 	defer database.Close()
 
 	metricsService := service.MetricsService{}
-	metricsService.Initialize(&config, &database)
+	metricsService.Initialize(&serverConfig, &database)
 
 	handlers := handler.InitializeHandlers(&metricsService, &database)
 
 	r := handler.CreateChiRouter(&handlers)
 
-	logger.Sugar.Infof("starting server on http://%s", config.RunAddr)
-	logger.Sugar.Fatal(http.ListenAndServe(config.RunAddr, r))
+	logger.Sugar.Infof("starting server on http://%s", serverConfig.RunAddr)
+	logger.Sugar.Fatal(http.ListenAndServe(serverConfig.RunAddr, r))
 }

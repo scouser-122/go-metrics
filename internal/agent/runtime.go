@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/scouser-122/go-metrics/internal/config"
 	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
 )
@@ -136,11 +137,21 @@ func (agent *RuntimeMetricsAgent) SendMetrics() {
 	// }
 	// logger.Sugar.Infof("successfully sent %d metrics", successSentCount)
 
-	response, err := agent.SendMetricsJSON(client, metrics)
+	logger.Sugar.Info("start sending metrics")
+	err := config.AgentRetry(
+		agent.Config.RetryConfig,
+		func() error {
+			response, err := agent.SendMetricsJSON(client, metrics)
+			if err != nil {
+				return err
+			} else {
+				logger.Sugar.Info(response)
+			}
+			return nil
+		},
+	)
 	if err != nil {
 		logger.Sugar.Errorf("error sending metrics: %s", err)
-	} else {
-		logger.Sugar.Info(response)
 	}
 }
 

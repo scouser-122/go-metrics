@@ -3,6 +3,8 @@ package agent
 import (
 	"fmt"
 	"strings"
+
+	"github.com/scouser-122/go-metrics/internal/config"
 )
 
 type AgentConfig struct {
@@ -12,11 +14,12 @@ type AgentConfig struct {
 	PollInterval       int    `env:"POLL_INTERVAL"`
 	LogLevel           string `env:"LOG_LEVEL"`
 	Environment        string `env:"AGENT_ENVIRONMENT"`
+	RetryConfig        config.RetryConfig
 }
 
 func GetDefaultAgentConfig() AgentConfig {
-	config := AgentConfig{}
-	config.runtimeMetricNames = []string{
+	agentConfig := AgentConfig{}
+	agentConfig.runtimeMetricNames = []string{
 		"Alloc",
 		"BuckHashSys",
 		"Frees",
@@ -45,12 +48,13 @@ func GetDefaultAgentConfig() AgentConfig {
 		"Sys",
 		"TotalAlloc",
 	}
-	config.ServerAddress = "http://localhost:8080"
-	config.PollInterval = 2
-	config.ReportInterval = 10
-	config.LogLevel = "info"
-	config.Environment = "dev"
-	return config
+	agentConfig.ServerAddress = "http://localhost:8080"
+	agentConfig.PollInterval = 2
+	agentConfig.ReportInterval = 10
+	agentConfig.LogLevel = "info"
+	agentConfig.Environment = "dev"
+	agentConfig.RetryConfig = config.DefaultRetryConfig()
+	return agentConfig
 }
 
 func (agentConfig *AgentConfig) CheckAndCorrectServerAddress() {

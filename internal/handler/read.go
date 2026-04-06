@@ -132,7 +132,7 @@ func (h *ReadHandler) PingDB(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/plain")
 	var status int
 	var result string
-	if err := h.Database.Ping(); err != nil {
+	if err := h.Database.Ping(req.Context()); err != nil {
 		status = http.StatusInternalServerError
 		result = "error"
 		logger.Sugar.Errorf("DB ping failed: %s", err)

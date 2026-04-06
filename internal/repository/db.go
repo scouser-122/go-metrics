@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/scouser-122/go-metrics/internal/config"
 	"github.com/scouser-122/go-metrics/internal/config/db"
 	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
@@ -27,7 +28,13 @@ func (storage *DataBaseStorage) UpdateOrCreateCounter(ctx context.Context, name 
 	metric := models.Metrics{
 		Delta: new(int64),
 	}
-	err = row.Scan(&metric.ID, &metric.MType, &metric.Delta)
+	err = config.DataBaseRequestRetry(
+		ctx,
+		storage.Database.Config.RetryConfig,
+		func() error {
+			return row.Scan(&metric.ID, &metric.MType, &metric.Delta)
+		},
+	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			metric := models.Metrics{
@@ -75,7 +82,13 @@ func (storage *DataBaseStorage) UpdateOrCreateGauge(ctx context.Context, name st
 	}
 
 	metric := models.Metrics{}
-	err = row.Scan(&metric.ID, &metric.MType)
+	err = config.DataBaseRequestRetry(
+		ctx,
+		storage.Database.Config.RetryConfig,
+		func() error {
+			return row.Scan(&metric.ID, &metric.MType)
+		},
+	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			metric := models.Metrics{
@@ -121,7 +134,13 @@ func (storage *DataBaseStorage) UpdateOrCreateMetric(ctx context.Context, metric
 	}
 
 	dbMetric := models.Metrics{}
-	err = row.Scan(&dbMetric.Delta, &dbMetric.Value)
+	err = config.DataBaseRequestRetry(
+		ctx,
+		storage.Database.Config.RetryConfig,
+		func() error {
+			return row.Scan(&dbMetric.Delta, &dbMetric.Value)
+		},
+	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			_, err = storage.Database.Exec(
@@ -212,7 +231,14 @@ func (storage *DataBaseStorage) UpdateOrCreateMetrics(ctx context.Context, metri
 			count++
 		}
 	}
-	if err := tx.Commit(ctx); err != nil {
+	err = config.DataBaseRequestRetry(
+		ctx,
+		storage.Database.Config.RetryConfig,
+		func() error {
+			return tx.Commit(ctx)
+		},
+	)
+	if err != nil {
 		return 0, models.MetricSaveError{Message: err.Error()}
 	}
 	return count, nil
@@ -273,7 +299,13 @@ func (storage *DataBaseStorage) SaveMetrics(ctx context.Context, metrics []model
 		}
 
 		dbMetric := models.Metrics{}
-		err = row.Scan(&dbMetric.Delta, &dbMetric.Value)
+		err = config.DataBaseRequestRetry(
+			ctx,
+			storage.Database.Config.RetryConfig,
+			func() error {
+				return row.Scan(&dbMetric.Delta, &dbMetric.Value)
+			},
+		)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				_, err = storage.Database.Exec(
@@ -325,7 +357,13 @@ func (storage *DataBaseStorage) GetCounter(ctx context.Context, name string) (in
 	}
 
 	metric := models.Metrics{}
-	err = row.Scan(&metric.ID, &metric.MType, &metric.Delta)
+	err = config.DataBaseRequestRetry(
+		ctx,
+		storage.Database.Config.RetryConfig,
+		func() error {
+			return row.Scan(&metric.ID, &metric.MType, &metric.Delta)
+		},
+	)
 	if err != nil {
 		return 0, models.MetricGetError{Message: err.Error()}
 	}
@@ -344,7 +382,13 @@ func (storage *DataBaseStorage) GetGauge(ctx context.Context, name string) (floa
 	}
 
 	metric := models.Metrics{}
-	err = row.Scan(&metric.ID, &metric.MType, &metric.Value)
+	err = config.DataBaseRequestRetry(
+		ctx,
+		storage.Database.Config.RetryConfig,
+		func() error {
+			return row.Scan(&metric.ID, &metric.MType, &metric.Value)
+		},
+	)
 	if err != nil {
 		return 0, models.MetricGetError{Message: err.Error()}
 	}
@@ -363,7 +407,13 @@ func (storage *DataBaseStorage) GetMetricWithValue(ctx context.Context, metric *
 	}
 
 	metricDB := models.Metrics{}
-	err = row.Scan(&metricDB.ID, &metricDB.MType, &metricDB.Delta, &metricDB.Value)
+	err = config.DataBaseRequestRetry(
+		ctx,
+		storage.Database.Config.RetryConfig,
+		func() error {
+			return row.Scan(&metricDB.ID, &metricDB.MType, &metricDB.Delta, &metricDB.Value)
+		},
+	)
 	if err != nil {
 		return nil, models.MetricGetError{Message: err.Error()}
 	}
