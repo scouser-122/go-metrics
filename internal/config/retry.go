@@ -26,7 +26,7 @@ func DefaultRetryConfig() RetryConfig {
 func AgentRetry(config RetryConfig, operation func() error) error {
 	var lastErr error
 
-	for attempt := 1; attempt <= config.MaxAttempts; attempt++ {
+	for attempt := 0; attempt <= config.MaxAttempts; attempt++ {
 		err := operation()
 		if err == nil {
 			return nil
@@ -38,20 +38,23 @@ func AgentRetry(config RetryConfig, operation func() error) error {
 			return lastErr
 		}
 
-		backoff := calculateBackoff(config, attempt)
-
-		logger.Sugar.Infof("received error %q on attempt %d, will retry after %q", lastErr, attempt, backoff)
-		time.Sleep(backoff)
+		if attempt != config.MaxAttempts {
+			backoff := calculateBackoff(config, attempt)
+			logger.Sugar.Infof("received error on attempt %d: %s, will retry after %q", attempt, lastErr, backoff)
+			time.Sleep(backoff)
+		} else {
+			logger.Sugar.Infof("received error on attempt %d: %s", attempt, lastErr)
+		}
 	}
 
-	logger.Sugar.Errorf("max retries (%d) exceeded, error: %q", config.MaxAttempts, lastErr)
+	logger.Sugar.Infof("max retries (%d) exceeded", config.MaxAttempts)
 	return lastErr
 }
 
 func DataBaseRequestRetry(ctx context.Context, config RetryConfig, operation func() error) error {
 	var lastErr error
 
-	for attempt := 1; attempt <= config.MaxAttempts; attempt++ {
+	for attempt := 0; attempt <= config.MaxAttempts; attempt++ {
 		err := operation()
 		if err == nil {
 			return nil
@@ -63,21 +66,24 @@ func DataBaseRequestRetry(ctx context.Context, config RetryConfig, operation fun
 			return lastErr
 		}
 
-		backoff := calculateBackoff(config, attempt)
-
-		logger.Sugar.Infof("received error %s on attempt %d, will retry after %q", lastErr, attempt, backoff)
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("context cancelled during retry: %w", ctx.Err())
-		case <-time.After(backoff):
+		if attempt != config.MaxAttempts {
+			backoff := calculateBackoff(config, attempt)
+			logger.Sugar.Infof("received error on attempt %d: %s, will retry after %q", attempt, lastErr, backoff)
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("context cancelled during retry: %w", ctx.Err())
+			case <-time.After(backoff):
+			}
+		} else {
+			logger.Sugar.Infof("received error on attempt %d: %s", attempt, lastErr)
 		}
 	}
 
-	logger.Sugar.Errorf("max retries (%d) exceeded, error: %q", config.MaxAttempts, lastErr)
+	logger.Sugar.Infof("max retries (%d) exceeded", config.MaxAttempts)
 	return lastErr
 }
 
 func calculateBackoff(config RetryConfig, attempt int) time.Duration {
-	backoff := float64(config.InitialBackoff + (attempt-1)*config.BackoffMultiplier)
+	backoff := float64(config.InitialBackoff + attempt*config.BackoffMultiplier)
 	return time.Duration(backoff * float64(time.Millisecond))
 }

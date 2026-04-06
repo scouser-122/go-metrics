@@ -54,7 +54,7 @@ func (service *MetricsService) SaveMetric(ctx context.Context, metricType string
 	var result string
 	if metricType != models.Counter && metricType != models.Gauge {
 		return result, models.IncorrectMetricType{
-			Message: fmt.Sprintf("Metric type incorrect: %q", metricType),
+			Message: fmt.Sprintf("metric type incorrect: %q", metricType),
 		}
 	}
 
@@ -63,7 +63,8 @@ func (service *MetricsService) SaveMetric(ctx context.Context, metricType string
 		counterValue, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return result, models.MetricFormatError{
-				Message: fmt.Sprintf("Metric counter incorrect format: %v\n", err),
+				Message: "metric counter incorrect format",
+				Err:     err,
 			}
 		}
 		saveResult, err := service.Storage.UpdateOrCreateCounter(ctx, name, counterValue)
@@ -76,7 +77,8 @@ func (service *MetricsService) SaveMetric(ctx context.Context, metricType string
 		gaugeValue, err := strconv.ParseFloat(value, 64)
 		if err != nil {
 			return result, models.MetricFormatError{
-				Message: fmt.Sprintf("Metric gauge incorrect format: %v\n", err),
+				Message: "metric gauge incorrect format",
+				Err:     err,
 			}
 		}
 		saveResult, err := service.Storage.UpdateOrCreateGauge(ctx, name, gaugeValue)
@@ -95,18 +97,18 @@ func (service *MetricsService) SaveMetricModel(ctx context.Context, metric *mode
 	case models.Counter:
 		if metric.Delta == nil {
 			return result, models.MetricFormatError{
-				Message: "Metric counter missing delta",
+				Message: "metric counter missing delta",
 			}
 		}
 	case models.Gauge:
 		if metric.Value == nil {
 			return result, models.MetricFormatError{
-				Message: "Metric gauge missing value",
+				Message: "metric gauge missing value",
 			}
 		}
 	default:
 		return result, models.IncorrectMetricType{
-			Message: fmt.Sprintf("Metric type incorrect: %q", metric.MType),
+			Message: fmt.Sprintf("metric type incorrect: %q", metric.MType),
 		}
 	}
 	result, err := service.Storage.UpdateOrCreateMetric(ctx, *metric)
@@ -120,18 +122,18 @@ func (service *MetricsService) SaveMetricsModel(ctx context.Context, metrics []m
 		case models.Counter:
 			if m.Delta == nil {
 				return 0, models.MetricFormatError{
-					Message: fmt.Sprintf("Metric counter %s missing delta", m.ID),
+					Message: fmt.Sprintf("metric counter %s missing delta", m.ID),
 				}
 			}
 		case models.Gauge:
 			if m.Value == nil {
 				return 0, models.MetricFormatError{
-					Message: fmt.Sprintf("Metric gauge %s missing value", m.ID),
+					Message: fmt.Sprintf("metric gauge %s missing value", m.ID),
 				}
 			}
 		default:
 			return 0, models.IncorrectMetricType{
-				Message: fmt.Sprintf("Metric type incorrect: %s %q", m.ID, m.MType),
+				Message: fmt.Sprintf("metric type incorrect: %s %q", m.ID, m.MType),
 			}
 		}
 	}
@@ -148,7 +150,7 @@ func (service *MetricsService) GetValue(ctx context.Context, metricType string, 
 	var result string
 	if metricType != models.Counter && metricType != models.Gauge {
 		return result, models.IncorrectMetricType{
-			Message: fmt.Sprintf("Metric type incorrect: %q", metricType),
+			Message: fmt.Sprintf("metric type incorrect: %q", metricType),
 		}
 	}
 
@@ -174,7 +176,7 @@ func (service *MetricsService) GetValue(ctx context.Context, metricType string, 
 func (service *MetricsService) ReadMetric(ctx context.Context, metric *models.Metrics) (*models.Metrics, error) {
 	if metric.MType != models.Counter && metric.MType != models.Gauge {
 		return nil, models.IncorrectMetricType{
-			Message: fmt.Sprintf("Metric type incorrect: %q", metric.MType),
+			Message: fmt.Sprintf("metric type incorrect: %q", metric.MType),
 		}
 	}
 	result, err := service.Storage.GetMetricWithValue(ctx, metric)

@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"net"
 
 	"github.com/jackc/pgerrcode"
@@ -18,26 +19,29 @@ func (e IncorrectMetricType) Error() string {
 
 type MetricFormatError struct {
 	Message string
+	Err     error
 }
 
 func (e MetricFormatError) Error() string {
-	return e.Message
+	return fmt.Sprintf("%s %v", e.Message, e.Err)
 }
 
 type MetricSaveError struct {
 	Message string
+	Err     error
 }
 
 func (e MetricSaveError) Error() string {
-	return e.Message
+	return fmt.Sprintf("%s %v", e.Message, e.Err)
 }
 
 type MetricGetError struct {
 	Message string
+	Err     error
 }
 
 func (e MetricGetError) Error() string {
-	return e.Message
+	return fmt.Sprintf("%s %v", e.Message, e.Err)
 }
 
 var (

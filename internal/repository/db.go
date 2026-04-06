@@ -22,7 +22,7 @@ func (storage *DataBaseStorage) UpdateOrCreateCounter(ctx context.Context, name 
 		name, models.Counter,
 	)
 	if err != nil {
-		return value, models.MetricSaveError{Message: err.Error()}
+		return value, models.MetricSaveError{Err: err}
 	}
 
 	metric := models.Metrics{
@@ -32,6 +32,7 @@ func (storage *DataBaseStorage) UpdateOrCreateCounter(ctx context.Context, name 
 		ctx,
 		storage.Database.Config.RetryConfig,
 		func() error {
+			logger.Sugar.Info("try scan db")
 			return row.Scan(&metric.ID, &metric.MType, &metric.Delta)
 		},
 	)
@@ -49,11 +50,11 @@ func (storage *DataBaseStorage) UpdateOrCreateCounter(ctx context.Context, name 
 				metric.ID, metric.MType, metric.Delta,
 			)
 			if err != nil {
-				return value, models.MetricSaveError{Message: err.Error()}
+				return value, models.MetricSaveError{Err: err}
 			}
 			return value, nil
 		} else {
-			return value, models.MetricSaveError{Message: err.Error()}
+			return value, models.MetricSaveError{Err: err}
 		}
 	}
 
@@ -65,7 +66,7 @@ func (storage *DataBaseStorage) UpdateOrCreateCounter(ctx context.Context, name 
 		*metric.Delta, metric.ID, metric.MType,
 	)
 	if err != nil {
-		return value, models.MetricSaveError{Message: err.Error()}
+		return value, models.MetricSaveError{Err: err}
 	}
 
 	return *metric.Delta, nil
@@ -78,7 +79,7 @@ func (storage *DataBaseStorage) UpdateOrCreateGauge(ctx context.Context, name st
 		name, models.Gauge,
 	)
 	if err != nil {
-		return value, models.MetricSaveError{Message: err.Error()}
+		return value, models.MetricSaveError{Err: err}
 	}
 
 	metric := models.Metrics{}
@@ -103,11 +104,11 @@ func (storage *DataBaseStorage) UpdateOrCreateGauge(ctx context.Context, name st
 				metric.ID, metric.MType, metric.Value,
 			)
 			if err != nil {
-				return value, models.MetricSaveError{Message: err.Error()}
+				return value, models.MetricSaveError{Err: err}
 			}
 			return value, nil
 		} else {
-			return value, models.MetricSaveError{Message: err.Error()}
+			return value, models.MetricSaveError{Err: err}
 		}
 	}
 
@@ -117,7 +118,7 @@ func (storage *DataBaseStorage) UpdateOrCreateGauge(ctx context.Context, name st
 		value, metric.ID, metric.MType,
 	)
 	if err != nil {
-		return value, models.MetricSaveError{Message: err.Error()}
+		return value, models.MetricSaveError{Err: err}
 	}
 
 	return value, nil
@@ -130,7 +131,7 @@ func (storage *DataBaseStorage) UpdateOrCreateMetric(ctx context.Context, metric
 		metric.ID, metric.MType,
 	)
 	if err != nil {
-		return metric, models.MetricSaveError{Message: err.Error()}
+		return metric, models.MetricSaveError{Err: err}
 	}
 
 	dbMetric := models.Metrics{}
@@ -149,11 +150,11 @@ func (storage *DataBaseStorage) UpdateOrCreateMetric(ctx context.Context, metric
 				metric.ID, metric.MType, metric.Delta, metric.Value,
 			)
 			if err != nil {
-				return metric, models.MetricSaveError{Message: err.Error()}
+				return metric, models.MetricSaveError{Err: err}
 			}
 			return metric, nil
 		} else {
-			return metric, models.MetricSaveError{Message: err.Error()}
+			return metric, models.MetricSaveError{Err: err}
 		}
 	}
 
@@ -166,7 +167,7 @@ func (storage *DataBaseStorage) UpdateOrCreateMetric(ctx context.Context, metric
 			*metric.Delta, metric.ID, metric.MType,
 		)
 		if err != nil {
-			return metric, models.MetricSaveError{Message: err.Error()}
+			return metric, models.MetricSaveError{Err: err}
 		}
 	case models.Gauge:
 		_, err = storage.Database.Exec(
@@ -175,7 +176,7 @@ func (storage *DataBaseStorage) UpdateOrCreateMetric(ctx context.Context, metric
 			*metric.Value, metric.ID, metric.MType,
 		)
 		if err != nil {
-			return metric, models.MetricSaveError{Message: err.Error()}
+			return metric, models.MetricSaveError{Err: err}
 		}
 	}
 
@@ -186,7 +187,7 @@ func (storage *DataBaseStorage) UpdateOrCreateMetrics(ctx context.Context, metri
 	count := int64(0)
 	tx, err := storage.Database.Begin(ctx)
 	if err != nil {
-		return 0, models.MetricSaveError{Message: err.Error()}
+		return 0, models.MetricSaveError{Err: err}
 	}
 	defer tx.Rollback(ctx)
 	for _, m := range metrics {
@@ -197,7 +198,7 @@ func (storage *DataBaseStorage) UpdateOrCreateMetrics(ctx context.Context, metri
 		)
 		if err != nil {
 			if !errors.Is(err, pgx.ErrNoRows) {
-				return 0, models.MetricSaveError{Message: err.Error()}
+				return 0, models.MetricSaveError{Err: err}
 			}
 		}
 		dbMetric := models.Metrics{}
@@ -210,11 +211,11 @@ func (storage *DataBaseStorage) UpdateOrCreateMetrics(ctx context.Context, metri
 					m.ID, m.MType, m.Delta, m.Value,
 				)
 				if err != nil {
-					return 0, models.MetricSaveError{Message: err.Error()}
+					return 0, models.MetricSaveError{Err: err}
 				}
 				count++
 			} else {
-				return 0, models.MetricSaveError{Message: err.Error()}
+				return 0, models.MetricSaveError{Err: err}
 			}
 		} else {
 			if m.MType == models.Counter {
@@ -226,7 +227,7 @@ func (storage *DataBaseStorage) UpdateOrCreateMetrics(ctx context.Context, metri
 				m.Delta, m.Value, m.ID, m.MType,
 			)
 			if err != nil {
-				return 0, models.MetricSaveError{Message: err.Error()}
+				return 0, models.MetricSaveError{Err: err}
 			}
 			count++
 		}
@@ -239,7 +240,7 @@ func (storage *DataBaseStorage) UpdateOrCreateMetrics(ctx context.Context, metri
 		},
 	)
 	if err != nil {
-		return 0, models.MetricSaveError{Message: err.Error()}
+		return 0, models.MetricSaveError{Err: err}
 	}
 	return count, nil
 }
@@ -295,7 +296,7 @@ func (storage *DataBaseStorage) SaveMetrics(ctx context.Context, metrics []model
 			metric.ID, metric.MType,
 		)
 		if err != nil {
-			return models.MetricSaveError{Message: err.Error()}
+			return models.MetricSaveError{Err: err}
 		}
 
 		dbMetric := models.Metrics{}
@@ -314,11 +315,11 @@ func (storage *DataBaseStorage) SaveMetrics(ctx context.Context, metrics []model
 					metric.ID, metric.MType, metric.Delta, metric.Value,
 				)
 				if err != nil {
-					return models.MetricSaveError{Message: err.Error()}
+					return models.MetricSaveError{Err: err}
 				}
 				continue
 			} else {
-				return models.MetricSaveError{Message: err.Error()}
+				return models.MetricSaveError{Err: err}
 			}
 		}
 
@@ -330,7 +331,7 @@ func (storage *DataBaseStorage) SaveMetrics(ctx context.Context, metrics []model
 				*metric.Delta, metric.ID, metric.MType,
 			)
 			if err != nil {
-				return models.MetricSaveError{Message: err.Error()}
+				return models.MetricSaveError{Err: err}
 			}
 		case models.Gauge:
 			_, err = storage.Database.Exec(
@@ -339,7 +340,7 @@ func (storage *DataBaseStorage) SaveMetrics(ctx context.Context, metrics []model
 				*metric.Value, metric.ID, metric.MType,
 			)
 			if err != nil {
-				return models.MetricSaveError{Message: err.Error()}
+				return models.MetricSaveError{Err: err}
 			}
 		}
 	}
@@ -353,7 +354,7 @@ func (storage *DataBaseStorage) GetCounter(ctx context.Context, name string) (in
 		name, models.Counter,
 	)
 	if err != nil {
-		return 0, models.MetricGetError{Message: err.Error()}
+		return 0, models.MetricGetError{Err: err}
 	}
 
 	metric := models.Metrics{}
@@ -365,7 +366,7 @@ func (storage *DataBaseStorage) GetCounter(ctx context.Context, name string) (in
 		},
 	)
 	if err != nil {
-		return 0, models.MetricGetError{Message: err.Error()}
+		return 0, models.MetricGetError{Err: err}
 	}
 
 	return *metric.Delta, nil
@@ -378,7 +379,7 @@ func (storage *DataBaseStorage) GetGauge(ctx context.Context, name string) (floa
 		name, models.Gauge,
 	)
 	if err != nil {
-		return 0, models.MetricGetError{Message: err.Error()}
+		return 0, models.MetricGetError{Err: err}
 	}
 
 	metric := models.Metrics{}
@@ -390,7 +391,7 @@ func (storage *DataBaseStorage) GetGauge(ctx context.Context, name string) (floa
 		},
 	)
 	if err != nil {
-		return 0, models.MetricGetError{Message: err.Error()}
+		return 0, models.MetricGetError{Err: err}
 	}
 
 	return *metric.Value, nil
@@ -403,7 +404,7 @@ func (storage *DataBaseStorage) GetMetricWithValue(ctx context.Context, metric *
 		metric.ID, metric.MType,
 	)
 	if err != nil {
-		return nil, models.MetricGetError{Message: err.Error()}
+		return nil, models.MetricGetError{Err: err}
 	}
 
 	metricDB := models.Metrics{}
@@ -415,7 +416,7 @@ func (storage *DataBaseStorage) GetMetricWithValue(ctx context.Context, metric *
 		},
 	)
 	if err != nil {
-		return nil, models.MetricGetError{Message: err.Error()}
+		return nil, models.MetricGetError{Err: err}
 	}
 
 	return &metricDB, nil
