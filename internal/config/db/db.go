@@ -110,8 +110,7 @@ func (db *Database) Ping(ctx context.Context) error {
 func (db *Database) Exec(ctx context.Context, query string, args ...any) (pgconn.CommandTag, error) {
 	if db.pool != nil {
 		var commandTag pgconn.CommandTag
-		var err error
-		err = config.DataBaseRequestRetry(
+		err := config.DataBaseRequestRetry(
 			ctx,
 			db.Config.RetryConfig,
 			func() error {
@@ -153,8 +152,7 @@ func (db *Database) QueryRow(ctx context.Context, query string, args ...any) (pg
 func (db *Database) Begin(ctx context.Context) (pgx.Tx, error) {
 	if db.pool != nil {
 		var tx pgx.Tx
-		var err error
-		err = config.DataBaseRequestRetry(
+		err := config.DataBaseRequestRetry(
 			ctx,
 			db.Config.RetryConfig,
 			func() error {
