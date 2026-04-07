@@ -25,9 +25,7 @@ func (storage *DataBaseStorage) UpdateOrCreateCounter(ctx context.Context, name 
 		return value, models.MetricSaveError{Err: err}
 	}
 
-	metric := models.Metrics{
-		Delta: new(int64),
-	}
+	metric := models.Metrics{}
 	err = config.DataBaseRequestRetry(
 		ctx,
 		storage.Database.Config.RetryConfig,
@@ -58,18 +56,16 @@ func (storage *DataBaseStorage) UpdateOrCreateCounter(ctx context.Context, name 
 		}
 	}
 
-	*metric.Delta += value
-
 	_, err = storage.Database.Exec(
 		ctx,
-		"UPDATE metrics SET delta = $1 WHERE id = $2 AND type = $3",
-		*metric.Delta, metric.ID, metric.MType,
+		"UPDATE metrics SET delta = delta + $1 WHERE id = $2 AND type = $3",
+		value, metric.ID, metric.MType,
 	)
 	if err != nil {
 		return value, models.MetricSaveError{Err: err}
 	}
 
-	return *metric.Delta, nil
+	return *metric.Delta + value, nil
 }
 
 func (storage *DataBaseStorage) UpdateOrCreateGauge(ctx context.Context, name string, value float64) (float64, error) {
@@ -160,10 +156,9 @@ func (storage *DataBaseStorage) UpdateOrCreateMetric(ctx context.Context, metric
 
 	switch metric.MType {
 	case models.Counter:
-		*metric.Delta += *dbMetric.Delta
 		_, err = storage.Database.Exec(
 			ctx,
-			"UPDATE metrics SET delta = $1 WHERE id = $2 AND type = $3",
+			"UPDATE metrics SET delta = delta + $1 WHERE id = $2 AND type = $3",
 			*metric.Delta, metric.ID, metric.MType,
 		)
 		if err != nil {
@@ -288,9 +283,14 @@ func (storage *DataBaseStorage) GetAllMetrics(ctx context.Context) []models.Metr
 }
 
 func (storage *DataBaseStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) error {
+	tx, err := storage.Database.Begin(ctx)
+	if err != nil {
+		return models.MetricSaveError{Err: err}
+	}
+	defer tx.Rollback(ctx)
 	for _, metric := range metrics {
 
-		row, err := storage.Database.QueryRow(
+		row := tx.QueryRow(
 			ctx,
 			"SELECT delta, value FROM metrics WHERE id = $1 AND type = $2",
 			metric.ID, metric.MType,
@@ -300,16 +300,10 @@ func (storage *DataBaseStorage) SaveMetrics(ctx context.Context, metrics []model
 		}
 
 		dbMetric := models.Metrics{}
-		err = config.DataBaseRequestRetry(
-			ctx,
-			storage.Database.Config.RetryConfig,
-			func() error {
-				return row.Scan(&dbMetric.Delta, &dbMetric.Value)
-			},
-		)
+		err = row.Scan(&dbMetric.Delta, &dbMetric.Value)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
-				_, err = storage.Database.Exec(
+				_, err = tx.Exec(
 					ctx,
 					"INSERT INTO metrics (id,type,delta,value) VALUES ($1,$2,$3,$4)",
 					metric.ID, metric.MType, metric.Delta, metric.Value,
@@ -322,27 +316,21 @@ func (storage *DataBaseStorage) SaveMetrics(ctx context.Context, metrics []model
 				return models.MetricSaveError{Err: err}
 			}
 		}
-
-		switch metric.MType {
-		case models.Counter:
-			_, err = storage.Database.Exec(
-				ctx,
-				"UPDATE metrics SET delta = $1 WHERE id = $2 AND type = $3",
-				*metric.Delta, metric.ID, metric.MType,
-			)
-			if err != nil {
-				return models.MetricSaveError{Err: err}
-			}
-		case models.Gauge:
-			_, err = storage.Database.Exec(
-				ctx,
-				"UPDATE metrics SET value = $1 WHERE id = $2 AND type = $3",
-				*metric.Value, metric.ID, metric.MType,
-			)
-			if err != nil {
-				return models.MetricSaveError{Err: err}
-			}
-		}
+		_, err = tx.Exec(
+			ctx,
+			"UPDATE metrics SET delta = $1, value = $2 WHERE id = $3 AND type = $4",
+			metric.Delta, metric.Value, metric.ID, metric.MType,
+		)
+	}
+	err = config.DataBaseRequestRetry(
+		ctx,
+		storage.Database.Config.RetryConfig,
+		func() error {
+			return tx.Commit(ctx)
+		},
+	)
+	if err != nil {
+		return models.MetricSaveError{Err: err}
 	}
 	return nil
 }
