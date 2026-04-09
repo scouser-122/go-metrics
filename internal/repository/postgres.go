@@ -6,16 +6,16 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/scouser-122/go-metrics/internal/config"
-	"github.com/scouser-122/go-metrics/internal/config/db"
 	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
+	"github.com/scouser-122/go-metrics/internal/repository/postgres"
 )
 
-type DataBaseStorage struct {
-	Database *db.Database
+type PostgresDBStorage struct {
+	Database *postgres.PostgresDatabase
 }
 
-func (storage *DataBaseStorage) UpdateOrCreateCounter(ctx context.Context, name string, value int64) (int64, error) {
+func (storage *PostgresDBStorage) UpdateOrCreateCounter(ctx context.Context, name string, value int64) (int64, error) {
 	row, err := storage.Database.QueryRow(
 		ctx,
 		"SELECT id, type, delta FROM metrics WHERE id = $1 AND type = $2",
@@ -68,7 +68,7 @@ func (storage *DataBaseStorage) UpdateOrCreateCounter(ctx context.Context, name 
 	return *metric.Delta + value, nil
 }
 
-func (storage *DataBaseStorage) UpdateOrCreateGauge(ctx context.Context, name string, value float64) (float64, error) {
+func (storage *PostgresDBStorage) UpdateOrCreateGauge(ctx context.Context, name string, value float64) (float64, error) {
 	row, err := storage.Database.QueryRow(
 		ctx,
 		"SELECT id, type FROM metrics WHERE id = $1 AND type = $2",
@@ -120,7 +120,7 @@ func (storage *DataBaseStorage) UpdateOrCreateGauge(ctx context.Context, name st
 	return value, nil
 }
 
-func (storage *DataBaseStorage) UpdateOrCreateMetric(ctx context.Context, metric models.Metrics) (models.Metrics, error) {
+func (storage *PostgresDBStorage) UpdateOrCreateMetric(ctx context.Context, metric models.Metrics) (models.Metrics, error) {
 	row, err := storage.Database.QueryRow(
 		ctx,
 		"SELECT delta, value FROM metrics WHERE id = $1 AND type = $2",
@@ -178,7 +178,7 @@ func (storage *DataBaseStorage) UpdateOrCreateMetric(ctx context.Context, metric
 	return metric, nil
 }
 
-func (storage *DataBaseStorage) UpdateOrCreateMetrics(ctx context.Context, metrics []models.Metrics) (int64, error) {
+func (storage *PostgresDBStorage) UpdateOrCreateMetrics(ctx context.Context, metrics []models.Metrics) (int64, error) {
 	count := int64(0)
 	tx, err := storage.Database.Begin(ctx)
 	if err != nil {
@@ -240,9 +240,9 @@ func (storage *DataBaseStorage) UpdateOrCreateMetrics(ctx context.Context, metri
 	return count, nil
 }
 
-func (storage *DataBaseStorage) GetAllMetrics(ctx context.Context) []models.Metrics {
+func (storage *PostgresDBStorage) GetAllMetrics(ctx context.Context) []models.Metrics {
 	page := 0
-	limit := 100
+	limit := 10
 	result := []models.Metrics{}
 
 	for {
@@ -254,27 +254,30 @@ func (storage *DataBaseStorage) GetAllMetrics(ctx context.Context) []models.Metr
 		)
 		if err != nil {
 			logger.Log.Sugar().Error(err)
+			rows.Close()
 			return []models.Metrics{}
 		}
-		defer rows.Close()
 		count := 0
 		for rows.Next() {
 			metric := models.Metrics{}
 			err = rows.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value)
 			if err != nil {
 				logger.Log.Sugar().Error(err)
+				rows.Close()
 				return []models.Metrics{}
 			}
 			result = append(result, metric)
 			count++
 		}
-		if count == 0 {
-			break
-		}
 		err = rows.Err()
 		if err != nil {
 			logger.Log.Sugar().Error(err)
+			rows.Close()
 			return []models.Metrics{}
+		}
+		rows.Close()
+		if count == 0 {
+			break
 		}
 		page++
 	}
@@ -282,7 +285,7 @@ func (storage *DataBaseStorage) GetAllMetrics(ctx context.Context) []models.Metr
 	return result
 }
 
-func (storage *DataBaseStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) error {
+func (storage *PostgresDBStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) error {
 	tx, err := storage.Database.Begin(ctx)
 	if err != nil {
 		return models.MetricSaveError{Err: err}
@@ -335,7 +338,7 @@ func (storage *DataBaseStorage) SaveMetrics(ctx context.Context, metrics []model
 	return nil
 }
 
-func (storage *DataBaseStorage) GetCounter(ctx context.Context, name string) (int64, error) {
+func (storage *PostgresDBStorage) GetCounter(ctx context.Context, name string) (int64, error) {
 	row, err := storage.Database.QueryRow(
 		ctx,
 		"SELECT id, type, delta FROM metrics WHERE id = $1 AND type = $2",
@@ -360,7 +363,7 @@ func (storage *DataBaseStorage) GetCounter(ctx context.Context, name string) (in
 	return *metric.Delta, nil
 }
 
-func (storage *DataBaseStorage) GetGauge(ctx context.Context, name string) (float64, error) {
+func (storage *PostgresDBStorage) GetGauge(ctx context.Context, name string) (float64, error) {
 	row, err := storage.Database.QueryRow(
 		ctx,
 		"SELECT id, type, value FROM metrics WHERE id = $1 AND type = $2",
@@ -385,7 +388,7 @@ func (storage *DataBaseStorage) GetGauge(ctx context.Context, name string) (floa
 	return *metric.Value, nil
 }
 
-func (storage *DataBaseStorage) GetMetricWithValue(ctx context.Context, metric *models.Metrics) (*models.Metrics, error) {
+func (storage *PostgresDBStorage) GetMetricWithValue(ctx context.Context, metric *models.Metrics) (*models.Metrics, error) {
 	row, err := storage.Database.QueryRow(
 		ctx,
 		"SELECT id, type, delta, value FROM metrics WHERE id = $1 AND type = $2",

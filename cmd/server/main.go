@@ -7,6 +7,7 @@ import (
 	"github.com/scouser-122/go-metrics/internal/config/db"
 	"github.com/scouser-122/go-metrics/internal/handler"
 	"github.com/scouser-122/go-metrics/internal/logger"
+	"github.com/scouser-122/go-metrics/internal/repository/postgres"
 	"github.com/scouser-122/go-metrics/internal/service"
 )
 
@@ -18,7 +19,7 @@ func main() {
 		panic(err)
 	}
 
-	database := db.Database{
+	database := postgres.PostgresDatabase{
 		Config: db.DBConnectionConfig{
 			DSN:         serverConfig.DBDataSourceName,
 			RetryConfig: config.DefaultRetryConfig(),

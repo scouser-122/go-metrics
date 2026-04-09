@@ -1,4 +1,4 @@
-package db
+package postgres
 
 import (
 	"context"
@@ -13,15 +13,16 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/scouser-122/go-metrics/internal/config"
+	"github.com/scouser-122/go-metrics/internal/config/db"
 	"github.com/scouser-122/go-metrics/internal/logger"
 )
 
-type Database struct {
-	Config DBConnectionConfig
+type PostgresDatabase struct {
+	Config db.DBConnectionConfig
 	pool   *pgxpool.Pool
 }
 
-func (db *Database) Open() error {
+func (db *PostgresDatabase) Open() error {
 	if db.Config.DSN == "" {
 		return fmt.Errorf("connection string is empty")
 	}
@@ -53,7 +54,7 @@ func (db *Database) Open() error {
 	return nil
 }
 
-func (db *Database) runMigrations() error {
+func (db *PostgresDatabase) runMigrations() error {
 	path, err := getMigrationsPath()
 	if err != nil {
 		return err
@@ -88,13 +89,13 @@ func getMigrationsPath() (string, error) {
 	return "file://" + migrationsPath, nil
 }
 
-func (db *Database) Close() {
+func (db *PostgresDatabase) Close() {
 	if db.pool != nil {
 		db.pool.Close()
 	}
 }
 
-func (db *Database) Ping(ctx context.Context) error {
+func (db *PostgresDatabase) Ping(ctx context.Context) error {
 	if db.pool != nil {
 		return config.DataBaseRequestRetry(
 			ctx,
@@ -107,7 +108,7 @@ func (db *Database) Ping(ctx context.Context) error {
 	return fmt.Errorf("database connection was not opened")
 }
 
-func (db *Database) Exec(ctx context.Context, query string, args ...any) (pgconn.CommandTag, error) {
+func (db *PostgresDatabase) Exec(ctx context.Context, query string, args ...any) (pgconn.CommandTag, error) {
 	if db.pool != nil {
 		var commandTag pgconn.CommandTag
 		err := config.DataBaseRequestRetry(
@@ -124,7 +125,7 @@ func (db *Database) Exec(ctx context.Context, query string, args ...any) (pgconn
 	return pgconn.CommandTag{}, fmt.Errorf("database connection was not opened")
 }
 
-func (db *Database) Query(ctx context.Context, query string, args ...any) (pgx.Rows, error) {
+func (db *PostgresDatabase) Query(ctx context.Context, query string, args ...any) (pgx.Rows, error) {
 	if db.pool != nil {
 		var rows pgx.Rows
 		err := config.DataBaseRequestRetry(
@@ -141,14 +142,14 @@ func (db *Database) Query(ctx context.Context, query string, args ...any) (pgx.R
 	return nil, fmt.Errorf("database connection was not opened")
 }
 
-func (db *Database) QueryRow(ctx context.Context, query string, args ...any) (pgx.Row, error) {
+func (db *PostgresDatabase) QueryRow(ctx context.Context, query string, args ...any) (pgx.Row, error) {
 	if db.pool != nil {
 		return db.pool.QueryRow(ctx, query, args...), nil
 	}
 	return nil, fmt.Errorf("database connection was not opened")
 }
 
-func (db *Database) Begin(ctx context.Context) (pgx.Tx, error) {
+func (db *PostgresDatabase) Begin(ctx context.Context) (pgx.Tx, error) {
 	if db.pool != nil {
 		var tx pgx.Tx
 		err := config.DataBaseRequestRetry(

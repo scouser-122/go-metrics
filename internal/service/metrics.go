@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/scouser-122/go-metrics/internal/config"
-	"github.com/scouser-122/go-metrics/internal/config/db"
 	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
 	"github.com/scouser-122/go-metrics/internal/repository"
+	"github.com/scouser-122/go-metrics/internal/repository/postgres"
 )
 
 type MetricsService struct {
@@ -19,15 +19,15 @@ type MetricsService struct {
 	fsStorage    repository.MetricsStorage
 }
 
-func (service *MetricsService) Initialize(config *config.ServerConfig, db *db.Database) {
+func (service *MetricsService) Initialize(config *config.ServerConfig, db *postgres.PostgresDatabase) {
 	service.serverConfig = config
 	service.createStorage(config, db)
 }
 
-func (service *MetricsService) createStorage(config *config.ServerConfig, db *db.Database) {
+func (service *MetricsService) createStorage(config *config.ServerConfig, db *postgres.PostgresDatabase) {
 	if err := db.Ping(context.Background()); err == nil {
 		logger.Sugar.Infof("use database storage")
-		service.Storage = &repository.DataBaseStorage{
+		service.Storage = &repository.PostgresDBStorage{
 			Database: db,
 		}
 		if config.StorePath != "" {

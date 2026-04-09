@@ -11,16 +11,16 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/scouser-122/go-metrics/internal/config/db"
 	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
+	"github.com/scouser-122/go-metrics/internal/repository/postgres"
 	"github.com/scouser-122/go-metrics/internal/service"
 	"go.uber.org/zap"
 )
 
 type ReadHandler struct {
 	Service  *service.MetricsService
-	Database *db.Database
+	Database *postgres.PostgresDatabase
 	tmpl     *template.Template
 }
 
