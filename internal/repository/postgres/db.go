@@ -48,6 +48,8 @@ func (db *PostgresDatabase) Open() error {
 
 	err = db.runMigrations()
 	if err != nil {
+		db.pool.Close()
+		db.pool = nil
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 
