@@ -4,31 +4,39 @@ import (
 	"net/http"
 
 	"github.com/scouser-122/go-metrics/internal/config"
+	"github.com/scouser-122/go-metrics/internal/config/db"
 	"github.com/scouser-122/go-metrics/internal/handler"
 	"github.com/scouser-122/go-metrics/internal/logger"
-	"github.com/scouser-122/go-metrics/internal/repository"
+	"github.com/scouser-122/go-metrics/internal/repository/postgres"
 	"github.com/scouser-122/go-metrics/internal/service"
 )
 
 func main() {
-	config := config.DefaultServerConfig()
-	parseFlags(&config)
-	parseEnvVariables(&config)
-	if err := logger.Initialize(config.LogLevel, config.Environment); err != nil {
+	serverConfig := config.DefaultServerConfig()
+	parseFlags(&serverConfig)
+	parseEnvVariables(&serverConfig)
+	if err := logger.Initialize(serverConfig.LogLevel, serverConfig.Environment); err != nil {
 		panic(err)
 	}
 
-	memStorage := repository.MemStorage{}
-
-	metricsService := service.MetricsService{
-		Storage: &memStorage,
+	database := postgres.PostgresDatabase{
+		Config: db.DBConnectionConfig{
+			DSN:         serverConfig.DBDataSourceName,
+			RetryConfig: config.DefaultRetryConfig(),
+		},
 	}
-	metricsService.Initialize(&config)
+	if err := database.Open(); err != nil {
+		logger.Sugar.Errorf("cannot connect to database: %w", err)
+	}
+	defer database.Close()
 
-	handlers := handler.InitializeHandlers(&metricsService)
+	metricsService := service.MetricsService{}
+	metricsService.Initialize(&serverConfig, &database)
+
+	handlers := handler.InitializeHandlers(&metricsService, &database)
 
 	r := handler.CreateChiRouter(&handlers)
 
-	logger.Sugar.Infof("starting server on http://%s", config.RunAddr)
-	logger.Sugar.Fatal(http.ListenAndServe(config.RunAddr, r))
+	logger.Sugar.Infof("starting server on http://%s", serverConfig.RunAddr)
+	logger.Sugar.Fatal(http.ListenAndServe(serverConfig.RunAddr, r))
 }

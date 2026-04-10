@@ -13,8 +13,9 @@ func parseFlags(config *config.ServerConfig) {
 	flag.StringVar(&config.LogLevel, "l", "info", "logging level")
 	flag.StringVar(&config.Environment, "e", "dev", "environment")
 	flag.IntVar(&config.StoreInterval, "i", 300, "time interval in seconds to store metrics in file system")
-	flag.StringVar(&config.StorePath, "f", "./metrics_data.json", "metrics store file path")
+	flag.StringVar(&config.StorePath, "f", "", "metrics store file path")
 	flag.BoolVar(&config.Restore, "r", false, "should restore metrics data from storage file or not")
+	flag.StringVar(&config.DBDataSourceName, "d", "", "data source name for database connection")
 	flag.Parse()
 }
 

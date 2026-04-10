@@ -13,13 +13,15 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
+	"github.com/scouser-122/go-metrics/internal/repository/postgres"
 	"github.com/scouser-122/go-metrics/internal/service"
 	"go.uber.org/zap"
 )
 
 type ReadHandler struct {
-	Service *service.MetricsService
-	tmpl    *template.Template
+	Service  *service.MetricsService
+	Database *postgres.PostgresDatabase
+	tmpl     *template.Template
 }
 
 type MetricItem struct {
@@ -126,6 +128,22 @@ func (h *ReadHandler) ValueJSONHandler(res http.ResponseWriter, req *http.Reques
 	h.processValueJSONRequest(res, req)
 }
 
+func (h *ReadHandler) PingDB(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "text/plain")
+	var status int
+	var result string
+	if err := h.Database.Ping(req.Context()); err != nil {
+		status = http.StatusInternalServerError
+		result = "error"
+		logger.Sugar.Errorf("DB ping failed: %s", err)
+	} else {
+		status = http.StatusOK
+		result = "ok"
+	}
+	res.WriteHeader(status)
+	res.Write([]byte(result))
+}
+
 func (h *ReadHandler) processListRequest(res http.ResponseWriter, req *http.Request) {
 	data := PageData{
 		Title:       "Metrics",
@@ -133,7 +151,7 @@ func (h *ReadHandler) processListRequest(res http.ResponseWriter, req *http.Requ
 		Metrics:     []MetricItem{},
 		LastUpdated: time.Now().Format("2006-01-02 15:04 MST"),
 	}
-	for _, m := range h.Service.Storage.GetAllMetrics() {
+	for _, m := range h.Service.Storage.GetAllMetrics(req.Context()) {
 		value, err := m.GetValueAsString()
 		if err != nil {
 			logger.Sugar.Errorf("can't get value for metric %s, type %s, err: %q", m.ID, m.MType, err)
@@ -160,7 +178,7 @@ func (h *ReadHandler) processValueRequest(res http.ResponseWriter, req *http.Req
 	metricType := chi.URLParam(req, "type")
 	name := chi.URLParam(req, "name")
 
-	result, err := h.Service.GetValue(metricType, name)
+	result, err := h.Service.GetValue(req.Context(), metricType, name)
 	if err != nil {
 		if errors.As(err, &models.ErrIncorrectType) {
 			logger.Sugar.Errorf("metric type incorrect: %q", err.Error())
@@ -186,7 +204,7 @@ func (h *ReadHandler) processValueJSONRequest(res http.ResponseWriter, req *http
 		return
 	}
 
-	result, err := h.Service.ReadMetric(&metric)
+	result, err := h.Service.ReadMetric(req.Context(), &metric)
 	if err != nil {
 		if errors.As(err, &models.ErrIncorrectType) {
 			logger.Sugar.Errorf("metric type incorrect: %q", err.Error())

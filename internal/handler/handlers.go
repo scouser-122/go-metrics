@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"github.com/scouser-122/go-metrics/internal/repository/postgres"
 	"github.com/scouser-122/go-metrics/internal/service"
 )
 
@@ -12,7 +13,7 @@ type Handler struct {
 	HandlerFn      http.HandlerFunc
 }
 
-func InitializeHandlers(service *service.MetricsService) []Handler {
+func InitializeHandlers(service *service.MetricsService, db *postgres.PostgresDatabase) []Handler {
 	handlers := []Handler{}
 
 	updateHandler := UpdateHandler{
@@ -33,9 +34,20 @@ func InitializeHandlers(service *service.MetricsService) []Handler {
 		URLPathPattern: "/update",
 		HandlerFn:      updateHandler.UpdateJSONHandler,
 	})
+	handlers = append(handlers, Handler{
+		Method:         http.MethodPost,
+		URLPathPattern: "/updates/",
+		HandlerFn:      updateHandler.UpdateJSONArrayHandler,
+	})
+	handlers = append(handlers, Handler{
+		Method:         http.MethodPost,
+		URLPathPattern: "/updates",
+		HandlerFn:      updateHandler.UpdateJSONArrayHandler,
+	})
 
 	readHandler := ReadHandler{
-		Service: service,
+		Service:  service,
+		Database: db,
 	}
 	readHandler.CreateTemplate()
 	handlers = append(handlers, Handler{
@@ -57,6 +69,11 @@ func InitializeHandlers(service *service.MetricsService) []Handler {
 		Method:         http.MethodPost,
 		URLPathPattern: "/value/",
 		HandlerFn:      readHandler.ValueJSONHandler,
+	})
+	handlers = append(handlers, Handler{
+		Method:         http.MethodGet,
+		URLPathPattern: "/ping",
+		HandlerFn:      readHandler.PingDB,
 	})
 
 	return handlers

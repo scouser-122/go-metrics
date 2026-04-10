@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 
@@ -22,8 +23,8 @@ func CreateFileSystemStorage(config *config.ServerConfig) *FileSystemStorage {
 	}
 }
 
-func (storage *FileSystemStorage) UpdateOrCreateCounter(name string, value int64) (int64, error) {
-	value, err := storage.MemoryStorage.UpdateOrCreateCounter(name, value)
+func (storage *FileSystemStorage) UpdateOrCreateCounter(ctx context.Context, name string, value int64) (int64, error) {
+	value, err := storage.MemoryStorage.UpdateOrCreateCounter(ctx, name, value)
 	if err != nil {
 		return value, err
 	}
@@ -31,8 +32,8 @@ func (storage *FileSystemStorage) UpdateOrCreateCounter(name string, value int64
 	return value, err
 }
 
-func (storage *FileSystemStorage) UpdateOrCreateGauge(name string, value float64) (float64, error) {
-	value, err := storage.MemoryStorage.UpdateOrCreateGauge(name, value)
+func (storage *FileSystemStorage) UpdateOrCreateGauge(ctx context.Context, name string, value float64) (float64, error) {
+	value, err := storage.MemoryStorage.UpdateOrCreateGauge(ctx, name, value)
 	if err != nil {
 		return value, err
 	}
@@ -40,8 +41,8 @@ func (storage *FileSystemStorage) UpdateOrCreateGauge(name string, value float64
 	return value, err
 }
 
-func (storage *FileSystemStorage) UpdateOrCreateMetric(metric models.Metrics) (models.Metrics, error) {
-	metric, err := storage.MemoryStorage.UpdateOrCreateMetric(metric)
+func (storage *FileSystemStorage) UpdateOrCreateMetric(ctx context.Context, metric models.Metrics) (models.Metrics, error) {
+	metric, err := storage.MemoryStorage.UpdateOrCreateMetric(ctx, metric)
 	if err != nil {
 		return metric, err
 	}
@@ -49,15 +50,26 @@ func (storage *FileSystemStorage) UpdateOrCreateMetric(metric models.Metrics) (m
 	return metric, err
 }
 
-func (storage *FileSystemStorage) GetAllMetrics() []models.Metrics {
+func (storage *FileSystemStorage) UpdateOrCreateMetrics(ctx context.Context, metrics []models.Metrics) (int64, error) {
+	count := int64(0)
+	for _, m := range metrics {
+		_, err := storage.UpdateOrCreateMetric(ctx, m)
+		if err == nil {
+			count++
+		}
+	}
+	return count, nil
+}
+
+func (storage *FileSystemStorage) GetAllMetrics(ctx context.Context) []models.Metrics {
 	if len(storage.MemoryStorage.Metrics) == 0 {
 		storage.loadMetricsFromFS()
 	}
 	return storage.MemoryStorage.Metrics
 }
 
-func (storage *FileSystemStorage) SaveMetrics(metrics []models.Metrics) error {
-	err := storage.MemoryStorage.SaveMetrics(metrics)
+func (storage *FileSystemStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) error {
+	err := storage.MemoryStorage.SaveMetrics(ctx, metrics)
 	if err != nil {
 		return err
 	}
@@ -65,25 +77,25 @@ func (storage *FileSystemStorage) SaveMetrics(metrics []models.Metrics) error {
 	return nil
 }
 
-func (storage *FileSystemStorage) GetCounter(name string) (int64, error) {
+func (storage *FileSystemStorage) GetCounter(ctx context.Context, name string) (int64, error) {
 	if len(storage.MemoryStorage.Metrics) == 0 {
 		storage.loadMetricsFromFS()
 	}
-	return storage.MemoryStorage.GetCounter(name)
+	return storage.MemoryStorage.GetCounter(ctx, name)
 }
 
-func (storage *FileSystemStorage) GetGauge(name string) (float64, error) {
+func (storage *FileSystemStorage) GetGauge(ctx context.Context, name string) (float64, error) {
 	if len(storage.MemoryStorage.Metrics) == 0 {
 		storage.loadMetricsFromFS()
 	}
-	return storage.MemoryStorage.GetGauge(name)
+	return storage.MemoryStorage.GetGauge(ctx, name)
 }
 
-func (storage *FileSystemStorage) GetMetricWithValue(metric *models.Metrics) (*models.Metrics, error) {
+func (storage *FileSystemStorage) GetMetricWithValue(ctx context.Context, metric *models.Metrics) (*models.Metrics, error) {
 	if len(storage.MemoryStorage.Metrics) == 0 {
 		storage.loadMetricsFromFS()
 	}
-	return storage.MemoryStorage.GetMetricWithValue(metric)
+	return storage.MemoryStorage.GetMetricWithValue(ctx, metric)
 }
 
 func (storage *FileSystemStorage) saveMetricsInFS() error {

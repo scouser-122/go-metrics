@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"github.com/scouser-122/go-metrics/internal/config"
 	models "github.com/scouser-122/go-metrics/internal/model"
 	"github.com/scouser-122/go-metrics/internal/repository"
+	"github.com/scouser-122/go-metrics/internal/repository/postgres"
 	"github.com/scouser-122/go-metrics/internal/service"
 	"github.com/stretchr/testify/assert"
 )
@@ -39,7 +41,7 @@ func TestListHandler(t *testing.T) {
 	metricsService := service.MetricsService{
 		Storage: &memStorage,
 	}
-	handlers := InitializeHandlers(&metricsService)
+	handlers := InitializeHandlers(&metricsService, nil)
 	for _, test := range listTests {
 		t.Run(test.name, func(t *testing.T) {
 			r := CreateChiRouter(&handlers)
@@ -124,7 +126,7 @@ func TestValueHandler(t *testing.T) {
 	metricsService := service.MetricsService{
 		Storage: &memStorage,
 	}
-	handlers := InitializeHandlers(&metricsService)
+	handlers := InitializeHandlers(&metricsService, nil)
 	for _, test := range valueTests {
 		t.Run(test.name, func(t *testing.T) {
 			r := CreateChiRouter(&handlers)
@@ -248,16 +250,10 @@ func TestValueJSONHandler(t *testing.T) {
 	for _, test := range valueJSONTests {
 		t.Run(test.name, func(t *testing.T) {
 			config := config.DefaultServerConfig()
-			memStorage := repository.MemStorage{}
-			if len(test.metrics) > 0 {
-				memStorage.Metrics = append(memStorage.Metrics, test.metrics...)
-			}
-
-			metricsService := service.MetricsService{
-				Storage: &memStorage,
-			}
-			metricsService.Initialize(&config)
-			handlers := InitializeHandlers(&metricsService)
+			metricsService := service.MetricsService{}
+			metricsService.Initialize(&config, &postgres.PostgresDatabase{})
+			metricsService.Storage.SaveMetrics(context.Background(), test.metrics)
+			handlers := InitializeHandlers(&metricsService, nil)
 
 			r := CreateChiRouter(&handlers)
 

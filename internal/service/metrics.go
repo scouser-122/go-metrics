@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
 	"github.com/scouser-122/go-metrics/internal/repository"
+	"github.com/scouser-122/go-metrics/internal/repository/postgres"
 )
 
 type MetricsService struct {
@@ -17,18 +19,42 @@ type MetricsService struct {
 	fsStorage    repository.MetricsStorage
 }
 
-func (service *MetricsService) Initialize(config *config.ServerConfig) {
+func (service *MetricsService) Initialize(config *config.ServerConfig, db *postgres.PostgresDatabase) {
 	service.serverConfig = config
-	service.fsStorage = repository.CreateFileSystemStorage(config)
-	service.restoreMetricsIfRequired()
-	service.storeMetricsInFsIfRequired()
+	service.createStorage(config, db)
 }
 
-func (service *MetricsService) SaveMetric(metricType string, name string, value string) (string, error) {
+func (service *MetricsService) createStorage(config *config.ServerConfig, db *postgres.PostgresDatabase) {
+	if err := db.Ping(context.Background()); err == nil {
+		logger.Sugar.Infof("use database storage")
+		service.Storage = &repository.PostgresDBStorage{
+			Database: db,
+		}
+		if config.StorePath != "" {
+			logger.Sugar.Infof("additionaly use filesystem storage")
+			service.fsStorage = repository.CreateFileSystemStorage(config)
+			service.restoreMetricsIfRequired()
+			service.storeMetricsInFsIfRequired()
+		}
+		return
+	}
+	if config.StorePath != "" {
+		logger.Sugar.Infof("use filesystem storage")
+		service.fsStorage = repository.CreateFileSystemStorage(config)
+		service.Storage = service.fsStorage
+		service.restoreMetricsIfRequired()
+		service.storeMetricsInFsIfRequired()
+		return
+	}
+	logger.Sugar.Infof("use in-memory storage")
+	service.Storage = &repository.MemStorage{}
+}
+
+func (service *MetricsService) SaveMetric(ctx context.Context, metricType string, name string, value string) (string, error) {
 	var result string
 	if metricType != models.Counter && metricType != models.Gauge {
 		return result, models.IncorrectMetricType{
-			Message: fmt.Sprintf("Metric type incorrect: %q", metricType),
+			Message: fmt.Sprintf("metric type incorrect: %q", metricType),
 		}
 	}
 
@@ -37,17 +63,13 @@ func (service *MetricsService) SaveMetric(metricType string, name string, value 
 		counterValue, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return result, models.MetricFormatError{
-				Message: fmt.Sprintf("Metric counter incorrect format: %v\n", err),
+				Message: "metric counter incorrect format",
+				Err:     err,
 			}
 		}
-		saveResult, err := service.Storage.UpdateOrCreateCounter(name, counterValue)
+		saveResult, err := service.Storage.UpdateOrCreateCounter(ctx, name, counterValue)
 		if err != nil {
 			return result, err
-		}
-		if service.serverConfig.StoreInterval == 0 {
-			if _, err := service.fsStorage.UpdateOrCreateCounter(name, counterValue); err != nil {
-				return result, err
-			}
 		}
 		result = strconv.FormatInt(saveResult, 10)
 
@@ -55,17 +77,13 @@ func (service *MetricsService) SaveMetric(metricType string, name string, value 
 		gaugeValue, err := strconv.ParseFloat(value, 64)
 		if err != nil {
 			return result, models.MetricFormatError{
-				Message: fmt.Sprintf("Metric gauge incorrect format: %v\n", err),
+				Message: "metric gauge incorrect format",
+				Err:     err,
 			}
 		}
-		saveResult, err := service.Storage.UpdateOrCreateGauge(name, gaugeValue)
+		saveResult, err := service.Storage.UpdateOrCreateGauge(ctx, name, gaugeValue)
 		if err != nil {
 			return result, err
-		}
-		if service.serverConfig.StoreInterval == 0 {
-			if _, err := service.fsStorage.UpdateOrCreateGauge(name, gaugeValue); err != nil {
-				return result, err
-			}
 		}
 		result = strconv.FormatFloat(saveResult, 'f', -1, 64)
 	}
@@ -73,57 +91,79 @@ func (service *MetricsService) SaveMetric(metricType string, name string, value 
 	return result, nil
 }
 
-func (service *MetricsService) SaveMetricModel(metric *models.Metrics) (models.Metrics, error) {
+func (service *MetricsService) SaveMetricModel(ctx context.Context, metric *models.Metrics) (models.Metrics, error) {
 	var result models.Metrics
 	switch metric.MType {
 	case models.Counter:
 		if metric.Delta == nil {
 			return result, models.MetricFormatError{
-				Message: "Metric counter missing delta",
+				Message: "metric counter missing delta",
 			}
 		}
 	case models.Gauge:
 		if metric.Value == nil {
 			return result, models.MetricFormatError{
-				Message: "Metric gauge missing value",
+				Message: "metric gauge missing value",
 			}
 		}
 	default:
 		return result, models.IncorrectMetricType{
-			Message: fmt.Sprintf("Metric type incorrect: %q", metric.MType),
+			Message: fmt.Sprintf("metric type incorrect: %q", metric.MType),
 		}
 	}
-	result, err := service.Storage.UpdateOrCreateMetric(*metric)
-	if service.serverConfig.StoreInterval == 0 {
-		if result, err := service.fsStorage.UpdateOrCreateMetric(*metric); err != nil {
-			return result, err
-		}
-	}
+	result, err := service.Storage.UpdateOrCreateMetric(ctx, *metric)
 	return result, err
 }
 
-func (service *MetricsService) GetAllMetrics() []models.Metrics {
-	return service.Storage.GetAllMetrics()
+func (service *MetricsService) SaveMetricsModel(ctx context.Context, metrics []models.Metrics) (int64, error) {
+	var result int64
+	for _, m := range metrics {
+		switch m.MType {
+		case models.Counter:
+			if m.Delta == nil {
+				return 0, models.MetricFormatError{
+					Message: fmt.Sprintf("metric counter %s missing delta", m.ID),
+				}
+			}
+		case models.Gauge:
+			if m.Value == nil {
+				return 0, models.MetricFormatError{
+					Message: fmt.Sprintf("metric gauge %s missing value", m.ID),
+				}
+			}
+		default:
+			return 0, models.IncorrectMetricType{
+				Message: fmt.Sprintf("metric type incorrect: %s %q", m.ID, m.MType),
+			}
+		}
+	}
+	var err error
+	result, err = service.Storage.UpdateOrCreateMetrics(ctx, metrics)
+	return result, err
 }
 
-func (service *MetricsService) GetValue(metricType string, name string) (string, error) {
+func (service *MetricsService) GetAllMetrics(ctx context.Context) []models.Metrics {
+	return service.Storage.GetAllMetrics(ctx)
+}
+
+func (service *MetricsService) GetValue(ctx context.Context, metricType string, name string) (string, error) {
 	var result string
 	if metricType != models.Counter && metricType != models.Gauge {
 		return result, models.IncorrectMetricType{
-			Message: fmt.Sprintf("Metric type incorrect: %q", metricType),
+			Message: fmt.Sprintf("metric type incorrect: %q", metricType),
 		}
 	}
 
 	switch metricType {
 	case models.Counter:
-		getResult, err := service.Storage.GetCounter(name)
+		getResult, err := service.Storage.GetCounter(ctx, name)
 		if err != nil {
 			return result, err
 		}
 		result = strconv.FormatInt(getResult, 10)
 
 	case models.Gauge:
-		getResult, err := service.Storage.GetGauge(name)
+		getResult, err := service.Storage.GetGauge(ctx, name)
 		if err != nil {
 			return result, err
 		}
@@ -133,13 +173,13 @@ func (service *MetricsService) GetValue(metricType string, name string) (string,
 	return result, nil
 }
 
-func (service *MetricsService) ReadMetric(metric *models.Metrics) (*models.Metrics, error) {
+func (service *MetricsService) ReadMetric(ctx context.Context, metric *models.Metrics) (*models.Metrics, error) {
 	if metric.MType != models.Counter && metric.MType != models.Gauge {
 		return nil, models.IncorrectMetricType{
-			Message: fmt.Sprintf("Metric type incorrect: %q", metric.MType),
+			Message: fmt.Sprintf("metric type incorrect: %q", metric.MType),
 		}
 	}
-	result, err := service.Storage.GetMetricWithValue(metric)
+	result, err := service.Storage.GetMetricWithValue(ctx, metric)
 	return result, err
 }
 
@@ -147,8 +187,8 @@ func (service *MetricsService) restoreMetricsIfRequired() {
 	if !service.serverConfig.Restore {
 		return
 	}
-	metrics := service.fsStorage.GetAllMetrics()
-	service.Storage.SaveMetrics(metrics)
+	metrics := service.fsStorage.GetAllMetrics(context.Background())
+	service.Storage.SaveMetrics(context.Background(), metrics)
 }
 
 func (service *MetricsService) storeMetricsInFsIfRequired() {
@@ -164,6 +204,7 @@ func (service *MetricsService) storeMetricsInFsWorker() {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		service.fsStorage.SaveMetrics(service.Storage.GetAllMetrics())
+		ctx := context.Background()
+		service.fsStorage.SaveMetrics(ctx, service.Storage.GetAllMetrics(ctx))
 	}
 }
