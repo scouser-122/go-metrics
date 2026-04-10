@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/scouser-122/go-metrics/internal/repository/postgres"
+	"github.com/scouser-122/go-metrics/internal/repository/db"
 	"github.com/scouser-122/go-metrics/internal/service"
 )
 
@@ -13,7 +13,7 @@ type Handler struct {
 	HandlerFn      http.HandlerFunc
 }
 
-func InitializeHandlers(service *service.MetricsService, db *postgres.PostgresDatabase) []Handler {
+func InitializeHandlers(service *service.MetricsService, db *db.PostgresDatabase) []Handler {
 	handlers := []Handler{}
 
 	updateHandler := UpdateHandler{
