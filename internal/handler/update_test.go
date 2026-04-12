@@ -10,7 +10,7 @@ import (
 
 	"github.com/scouser-122/go-metrics/internal/config"
 	"github.com/scouser-122/go-metrics/internal/repository"
-	"github.com/scouser-122/go-metrics/internal/repository/postgres"
+	"github.com/scouser-122/go-metrics/internal/repository/db"
 	"github.com/scouser-122/go-metrics/internal/service"
 	"github.com/stretchr/testify/assert"
 )
@@ -28,7 +28,7 @@ type request struct {
 	body        string
 }
 
-var updateTests = []struct {
+var updateTestsMemStorage = []struct {
 	name    string
 	request request
 	want    want
@@ -133,15 +133,15 @@ var updateTests = []struct {
 	},
 }
 
-func TestUpdateHandler(t *testing.T) {
-	for _, test := range updateTests {
+func TestUpdateHandlerMemStorage(t *testing.T) {
+	for _, test := range updateTestsMemStorage {
 		t.Run(test.name, func(t *testing.T) {
 			config := config.DefaultServerConfig()
 			memStorage := repository.MemStorage{}
 			metricsService := service.MetricsService{
 				Storage: &memStorage,
 			}
-			metricsService.Initialize(&config, &postgres.PostgresDatabase{})
+			metricsService.Initialize(&config, &db.PostgresDatabase{})
 			handlers := InitializeHandlers(&metricsService, nil)
 
 			r := CreateChiRouter(&handlers)
@@ -290,7 +290,7 @@ func TestUpdateJSONHandler(t *testing.T) {
 			metricsService := service.MetricsService{
 				Storage: &memStorage,
 			}
-			metricsService.Initialize(&config, &postgres.PostgresDatabase{})
+			metricsService.Initialize(&config, &db.PostgresDatabase{})
 			handlers := InitializeHandlers(&metricsService, nil)
 
 			r := CreateChiRouter(&handlers)

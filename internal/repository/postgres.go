@@ -8,11 +8,11 @@ import (
 	"github.com/scouser-122/go-metrics/internal/config"
 	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
-	"github.com/scouser-122/go-metrics/internal/repository/postgres"
+	"github.com/scouser-122/go-metrics/internal/repository/db"
 )
 
 type PostgresDBStorage struct {
-	Database *postgres.PostgresDatabase
+	Database *db.PostgresDatabase
 }
 
 func (storage *PostgresDBStorage) UpdateOrCreateCounter(ctx context.Context, name string, value int64) (int64, error) {

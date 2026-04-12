@@ -12,7 +12,7 @@ import (
 	"github.com/scouser-122/go-metrics/internal/config"
 	models "github.com/scouser-122/go-metrics/internal/model"
 	"github.com/scouser-122/go-metrics/internal/repository"
-	"github.com/scouser-122/go-metrics/internal/repository/postgres"
+	"github.com/scouser-122/go-metrics/internal/repository/db"
 	"github.com/scouser-122/go-metrics/internal/service"
 	"github.com/stretchr/testify/assert"
 )
@@ -251,7 +251,7 @@ func TestValueJSONHandler(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			config := config.DefaultServerConfig()
 			metricsService := service.MetricsService{}
-			metricsService.Initialize(&config, &postgres.PostgresDatabase{})
+			metricsService.Initialize(&config, &db.PostgresDatabase{})
 			metricsService.Storage.SaveMetrics(context.Background(), test.metrics)
 			handlers := InitializeHandlers(&metricsService, nil)
 

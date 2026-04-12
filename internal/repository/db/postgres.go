@@ -1,10 +1,11 @@
-package postgres
+package db
 
 import (
 	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -17,9 +18,18 @@ import (
 	"github.com/scouser-122/go-metrics/internal/logger"
 )
 
+type DBInterface interface {
+	Ping(ctx context.Context) error
+	Close()
+	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+	QueryRow(ctx context.Context, sql string, arguments ...interface{}) pgx.Row
+	Query(ctx context.Context, sql string, arguments ...interface{}) (pgx.Rows, error)
+	Begin(ctx context.Context) (pgx.Tx, error)
+}
+
 type PostgresDatabase struct {
 	Config db.DBConnectionConfig
-	pool   *pgxpool.Pool
+	Pool   DBInterface
 }
 
 func (db *PostgresDatabase) Open() error {
@@ -33,14 +43,14 @@ func (db *PostgresDatabase) Open() error {
 		return fmt.Errorf("failed to parse connection string: %q, err: %w", db.Config.DSN, err)
 	}
 
-	db.pool, err = pgxpool.NewWithConfig(context.Background(), config)
+	db.Pool, err = pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		return fmt.Errorf("failed to create connection pool: %w", err)
 	}
 
-	if err := db.pool.Ping(context.Background()); err != nil {
-		db.pool.Close()
-		db.pool = nil
+	if err := db.Pool.Ping(context.Background()); err != nil {
+		db.Pool.Close()
+		db.Pool = nil
 		return fmt.Errorf("failed to ping database: %w", err)
 	}
 
@@ -48,8 +58,8 @@ func (db *PostgresDatabase) Open() error {
 
 	err = db.runMigrations()
 	if err != nil {
-		db.pool.Close()
-		db.pool = nil
+		db.Pool.Close()
+		db.Pool = nil
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 
@@ -92,78 +102,90 @@ func getMigrationsPath() (string, error) {
 }
 
 func (db *PostgresDatabase) Close() {
-	if db.pool != nil {
-		db.pool.Close()
+	if !isNil(db.Pool) {
+		db.Pool.Close()
 	}
 }
 
 func (db *PostgresDatabase) Ping(ctx context.Context) error {
-	if db.pool != nil {
-		return config.DataBaseRequestRetry(
-			ctx,
-			db.Config.RetryConfig,
-			func() error {
-				return db.pool.Ping(ctx)
-			},
-		)
+	if isNil(db.Pool) {
+		return fmt.Errorf("database connection was not opened")
 	}
-	return fmt.Errorf("database connection was not opened")
+	return config.DataBaseRequestRetry(
+		ctx,
+		db.Config.RetryConfig,
+		func() error {
+			return db.Pool.Ping(ctx)
+		},
+	)
 }
 
 func (db *PostgresDatabase) Exec(ctx context.Context, query string, args ...any) (pgconn.CommandTag, error) {
-	if db.pool != nil {
-		var commandTag pgconn.CommandTag
-		err := config.DataBaseRequestRetry(
-			ctx,
-			db.Config.RetryConfig,
-			func() error {
-				var err error
-				commandTag, err = db.pool.Exec(ctx, query, args...)
-				return err
-			},
-		)
-		return commandTag, err
+	if isNil(db.Pool) {
+		return pgconn.CommandTag{}, fmt.Errorf("database connection was not opened")
 	}
-	return pgconn.CommandTag{}, fmt.Errorf("database connection was not opened")
+	var commandTag pgconn.CommandTag
+	err := config.DataBaseRequestRetry(
+		ctx,
+		db.Config.RetryConfig,
+		func() error {
+			var err error
+			commandTag, err = db.Pool.Exec(ctx, query, args...)
+			return err
+		},
+	)
+	return commandTag, err
 }
 
 func (db *PostgresDatabase) Query(ctx context.Context, query string, args ...any) (pgx.Rows, error) {
-	if db.pool != nil {
-		var rows pgx.Rows
-		err := config.DataBaseRequestRetry(
-			ctx,
-			db.Config.RetryConfig,
-			func() error {
-				var err error
-				rows, err = db.pool.Query(ctx, query, args...)
-				return err
-			},
-		)
-		return rows, err
+	if isNil(db.Pool) {
+		return nil, fmt.Errorf("database connection was not opened")
 	}
-	return nil, fmt.Errorf("database connection was not opened")
+	var rows pgx.Rows
+	err := config.DataBaseRequestRetry(
+		ctx,
+		db.Config.RetryConfig,
+		func() error {
+			var err error
+			rows, err = db.Pool.Query(ctx, query, args...)
+			return err
+		},
+	)
+	return rows, err
 }
 
 func (db *PostgresDatabase) QueryRow(ctx context.Context, query string, args ...any) (pgx.Row, error) {
-	if db.pool != nil {
-		return db.pool.QueryRow(ctx, query, args...), nil
+	if isNil(db.Pool) {
+		return nil, fmt.Errorf("database connection was not opened")
 	}
-	return nil, fmt.Errorf("database connection was not opened")
+	return db.Pool.QueryRow(ctx, query, args...), nil
 }
 
 func (db *PostgresDatabase) Begin(ctx context.Context) (pgx.Tx, error) {
-	if db.pool != nil {
-		var tx pgx.Tx
-		err := config.DataBaseRequestRetry(
-			ctx,
-			db.Config.RetryConfig,
-			func() error {
-				var err error
-				tx, err = db.pool.Begin(ctx)
-				return err
-			},
-		)
-		return tx, err
+	if isNil(db.Pool) {
+		return nil, fmt.Errorf("database connection was not opened")
 	}
-	return nil, fmt.Errorf("database connection was not opened")
+	var tx pgx.Tx
+	err := config.DataBaseRequestRetry(
+		ctx,
+		db.Config.RetryConfig,
+		func() error {
+			var err error
+			tx, err = db.Pool.Begin(ctx)
+			return err
+		},
+	)
+	return tx, err
+}
+
+func isNil(i interface{}) bool {
+	if i == nil {
+		return true
+	}
+	v := reflect.ValueOf(i)
+	switch v.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
+		return v.IsNil()
+	}
+	return false
 }
