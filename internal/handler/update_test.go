@@ -141,8 +141,11 @@ func TestUpdateHandlerMemStorage(t *testing.T) {
 			metricsService := service.MetricsService{
 				Storage: &memStorage,
 			}
+			cryptoService := service.CryptoService{
+				ServerConfig: &config,
+			}
 			metricsService.Initialize(&config, &db.PostgresDatabase{})
-			handlers := InitializeHandlers(&metricsService, nil)
+			handlers := InitializeHandlers(&metricsService, &cryptoService, nil)
 
 			r := CreateChiRouter(&handlers)
 
@@ -286,23 +289,32 @@ func TestUpdateJSONHandler(t *testing.T) {
 	for _, test := range updateJSONTests {
 		t.Run(test.name, func(t *testing.T) {
 			config := config.DefaultServerConfig()
+			config.HMACKey = "secret_key"
 			memStorage := repository.MemStorage{}
+			cryptoService := service.CryptoService{
+				ServerConfig: &config,
+			}
 			metricsService := service.MetricsService{
 				Storage: &memStorage,
 			}
 			metricsService.Initialize(&config, &db.PostgresDatabase{})
-			handlers := InitializeHandlers(&metricsService, nil)
+			handlers := InitializeHandlers(&metricsService, &cryptoService, nil)
 
 			r := CreateChiRouter(&handlers)
 
 			var bodyReader io.Reader
+			var bodyHash string
 			if test.request.body != "" {
 				jsonData := []byte(test.request.body)
 				bodyReader = bytes.NewBuffer(jsonData)
+				bodyHash = cryptoService.CalculateHash(jsonData)
 			}
 
 			request := httptest.NewRequest(test.request.method, test.request.path, bodyReader)
 			request.Header.Add("Content-Type", test.request.contentType)
+			if bodyHash != "" {
+				request.Header.Add("HashSHA256", bodyHash)
+			}
 
 			// создаём новый Recorder
 			w := httptest.NewRecorder()

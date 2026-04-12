@@ -173,11 +173,14 @@ func TestUpdateHandlerDBPostgres(t *testing.T) {
 	for _, test := range updateTestsDBPostgres {
 		t.Run(test.name, func(t *testing.T) {
 			config := config.DefaultServerConfig()
+			cryptoService := service.CryptoService{
+				ServerConfig: &config,
+			}
 			metricsService := service.MetricsService{}
 			test.mockDB.MockPool.MockMethods(test.mockDB)
 			db := db.NewMockPostgresDB(config, test.mockDB.MockPool)
 			metricsService.Initialize(&config, &db)
-			handlers := InitializeHandlers(&metricsService, nil)
+			handlers := InitializeHandlers(&metricsService, &cryptoService, nil)
 
 			r := CreateChiRouter(&handlers)
 

@@ -27,7 +27,11 @@ func main() {
 	metricsService := service.MetricsService{}
 	metricsService.Initialize(&serverConfig, &database)
 
-	handlers := handler.InitializeHandlers(&metricsService, &database)
+	cryptoService := service.CryptoService{
+		ServerConfig: &serverConfig,
+	}
+
+	handlers := handler.InitializeHandlers(&metricsService, &cryptoService, &database)
 
 	r := handler.CreateChiRouter(&handlers)
 

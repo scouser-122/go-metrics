@@ -10,5 +10,6 @@ go build -o server && ./server \
 -e dev \
 -i 2 \
 -d="postgres://postgres:123@localhost:5432/metrics_db?sslmode=disable" \
+-k="secret_key" \
 -f="./metrics_data.json"  \
 -r
