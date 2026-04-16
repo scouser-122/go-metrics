@@ -15,7 +15,9 @@ type AgentConfig struct {
 	LogLevel           string `env:"LOG_LEVEL"`
 	Environment        string `env:"AGENT_ENVIRONMENT"`
 	HMACKey            string `env:"KEY"`
+	RequestRateLimit   int    `env:"RATE_LIMIT"`
 	RetryConfig        config.RetryConfig
+	CollectChannelSize int
 }
 
 func GetDefaultAgentConfig() AgentConfig {
@@ -55,6 +57,7 @@ func GetDefaultAgentConfig() AgentConfig {
 	agentConfig.LogLevel = "info"
 	agentConfig.Environment = "dev"
 	agentConfig.RetryConfig = config.DefaultRetryConfig()
+	agentConfig.CollectChannelSize = 50
 	return agentConfig
 }
 
