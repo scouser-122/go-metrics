@@ -80,13 +80,16 @@ func (sender *MetricsSender) SendMetricsContinuousWorker(wg *sync.WaitGroup, dat
 	for w := 1; w <= sender.Config.RequestRateLimit; w++ {
 		go func() {
 			prevTime := time.Now()
+			time.Sleep(interval)
 			for data := range dataCh {
-				timeDiff := time.Since(prevTime)
-				if timeDiff < interval {
-					time.Sleep(interval - timeDiff)
-				}
 				logger.Sugar.Infof("start sending metrics in worker %d", w)
 				sender.SendMetrics(data.metrics)
+				if len(dataCh) == 0 {
+					timeDiff := time.Since(prevTime)
+					if timeDiff < interval {
+						time.Sleep(interval - timeDiff)
+					}
+				}
 				prevTime = time.Now()
 			}
 		}()
