@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/scouser-122/go-metrics/internal/logger"
@@ -16,7 +17,7 @@ import (
 
 type MetricsCollector struct {
 	Config    *AgentConfig
-	pollCount int64
+	pollCount atomic.Int64
 }
 
 func NewCollector(config *AgentConfig) MetricsCollector {
@@ -71,8 +72,6 @@ func (collector *MetricsCollector) CollectRuntimeMetrics(dataCh chan<- Collected
 	runtimeMetricsMap["TotalAlloc"] = float64(m.TotalAlloc)
 	runtimeMetricsMap["RandomValue"] = rand.Float64()
 
-	collector.pollCount++
-
 	keys := make([]string, 0, len(runtimeMetricsMap))
 	for key := range runtimeMetricsMap {
 		keys = append(keys, key)
@@ -93,12 +92,13 @@ func (collector *MetricsCollector) CollectRuntimeMetrics(dataCh chan<- Collected
 		MType: models.Counter,
 		Delta: new(int64),
 	}
-	*pollCountMetric.Delta = collector.pollCount
+	pollCount := collector.pollCount.Add(1)
+	*pollCountMetric.Delta = pollCount
 	runtimeMetrics = append(runtimeMetrics, pollCountMetric)
 
 	if len(dataCh) < cap(dataCh) {
 		dataCh <- CollectedData{runtimeMetrics}
-		logger.Sugar.Infof("successfully collect %d runtime metrics, poll count: %d", len(runtimeMetrics), collector.pollCount)
+		logger.Sugar.Infof("successfully collect %d runtime metrics, poll count: %d", len(runtimeMetrics), pollCount)
 	} else {
 		logger.Sugar.Errorf("error collecting runtime metrics, channel is full")
 	}
@@ -136,18 +136,18 @@ func (collector *MetricsCollector) CollectGopsutilMetrics(dataCh chan<- Collecte
 		})
 	}
 
-	collector.pollCount++
 	pollCountMetric := models.Metrics{
 		ID:    "PollCount",
 		MType: models.Counter,
 		Delta: new(int64),
 	}
-	*pollCountMetric.Delta = collector.pollCount
+	pollCount := collector.pollCount.Add(1)
+	*pollCountMetric.Delta = pollCount
 	gopsutilMetrics = append(gopsutilMetrics, pollCountMetric)
 
 	if len(dataCh) < cap(dataCh) {
 		dataCh <- CollectedData{gopsutilMetrics}
-		logger.Sugar.Infof("successfully collect %d gopsutil metrics, poll count: %d", len(gopsutilMetrics), collector.pollCount)
+		logger.Sugar.Infof("successfully collect %d gopsutil metrics, poll count: %d", len(gopsutilMetrics), pollCount)
 	} else {
 		logger.Sugar.Errorf("error collecting gopsutil metrics, channel is full")
 	}
