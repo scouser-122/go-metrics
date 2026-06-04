@@ -17,6 +17,8 @@ func parseFlags(config *config.ServerConfig) {
 	flag.BoolVar(&config.Restore, "r", false, "should restore metrics data from storage file or not")
 	flag.StringVar(&config.DBDataSourceName, "d", "", "data source name for database connection")
 	flag.StringVar(&config.HMACKey, "k", "", "HMAC key to calculate hash of request")
+	flag.StringVar(&config.AuditFile, "audit-file", "", "path to file where audit events should be written")
+	flag.StringVar(&config.AuditURL, "audit-url", "", "URL of service where audit events should be sent to")
 	flag.Parse()
 }
 

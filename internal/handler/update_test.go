@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/scouser-122/go-metrics/internal/config"
-	"github.com/scouser-122/go-metrics/internal/repository"
 	"github.com/scouser-122/go-metrics/internal/repository/db"
 	"github.com/scouser-122/go-metrics/internal/service"
 	"github.com/stretchr/testify/assert"
@@ -137,15 +136,12 @@ func TestUpdateHandlerMemStorage(t *testing.T) {
 	for _, test := range updateTestsMemStorage {
 		t.Run(test.name, func(t *testing.T) {
 			config := config.DefaultServerConfig()
-			memStorage := repository.MemStorage{}
-			metricsService := service.MetricsService{
-				Storage: &memStorage,
-			}
 			cryptoService := service.CryptoService{
 				ServerConfig: &config,
 			}
-			metricsService.Initialize(&config, &db.PostgresDatabase{})
-			handlers := InitializeHandlers(&metricsService, &cryptoService, nil)
+			metricsService := service.NewMetricsService(&config, &db.PostgresDatabase{})
+
+			handlers := InitializeHandlers(metricsService, &cryptoService, nil)
 
 			r := CreateChiRouter(&handlers)
 
@@ -290,15 +286,11 @@ func TestUpdateJSONHandler(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			config := config.DefaultServerConfig()
 			config.HMACKey = "secret_key"
-			memStorage := repository.MemStorage{}
 			cryptoService := service.CryptoService{
 				ServerConfig: &config,
 			}
-			metricsService := service.MetricsService{
-				Storage: &memStorage,
-			}
-			metricsService.Initialize(&config, &db.PostgresDatabase{})
-			handlers := InitializeHandlers(&metricsService, &cryptoService, nil)
+			metricsService := service.NewMetricsService(&config, &db.PostgresDatabase{})
+			handlers := InitializeHandlers(metricsService, &cryptoService, nil)
 
 			r := CreateChiRouter(&handlers)
 

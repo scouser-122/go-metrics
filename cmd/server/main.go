@@ -24,14 +24,13 @@ func main() {
 	}
 	defer database.Close()
 
-	metricsService := service.MetricsService{}
-	metricsService.Initialize(&serverConfig, &database)
+	metricsService := service.NewMetricsService(&serverConfig, &database)
 
 	cryptoService := service.CryptoService{
 		ServerConfig: &serverConfig,
 	}
 
-	handlers := handler.InitializeHandlers(&metricsService, &cryptoService, &database)
+	handlers := handler.InitializeHandlers(metricsService, &cryptoService, &database)
 
 	r := handler.CreateChiRouter(&handlers)
 

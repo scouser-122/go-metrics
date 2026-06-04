@@ -15,14 +15,14 @@ type PostgresDBStorage struct {
 	Database *db.PostgresDatabase
 }
 
-func (storage *PostgresDBStorage) UpdateOrCreateCounter(ctx context.Context, name string, value int64) (int64, error) {
+func (storage *PostgresDBStorage) UpdateOrCreateCounter(ctx context.Context, name string, value int64) (*models.Metrics, error) {
 	row, err := storage.Database.QueryRow(
 		ctx,
 		"SELECT id, type, delta FROM metrics WHERE id = $1 AND type = $2",
 		name, models.Counter,
 	)
 	if err != nil {
-		return value, models.MetricSaveError{Err: err}
+		return nil, models.MetricSaveError{Err: err}
 	}
 
 	metric := models.Metrics{}
@@ -48,11 +48,11 @@ func (storage *PostgresDBStorage) UpdateOrCreateCounter(ctx context.Context, nam
 				metric.ID, metric.MType, metric.Delta,
 			)
 			if err != nil {
-				return value, models.MetricSaveError{Err: err}
+				return nil, models.MetricSaveError{Err: err}
 			}
-			return value, nil
+			return &metric, nil
 		} else {
-			return value, models.MetricSaveError{Err: err}
+			return nil, models.MetricSaveError{Err: err}
 		}
 	}
 
@@ -62,20 +62,21 @@ func (storage *PostgresDBStorage) UpdateOrCreateCounter(ctx context.Context, nam
 		value, metric.ID, metric.MType,
 	)
 	if err != nil {
-		return value, models.MetricSaveError{Err: err}
+		return nil, models.MetricSaveError{Err: err}
 	}
+	*metric.Delta += value
 
-	return *metric.Delta + value, nil
+	return &metric, nil
 }
 
-func (storage *PostgresDBStorage) UpdateOrCreateGauge(ctx context.Context, name string, value float64) (float64, error) {
+func (storage *PostgresDBStorage) UpdateOrCreateGauge(ctx context.Context, name string, value float64) (*models.Metrics, error) {
 	row, err := storage.Database.QueryRow(
 		ctx,
 		"SELECT id, type FROM metrics WHERE id = $1 AND type = $2",
 		name, models.Gauge,
 	)
 	if err != nil {
-		return value, models.MetricSaveError{Err: err}
+		return nil, models.MetricSaveError{Err: err}
 	}
 
 	metric := models.Metrics{}
@@ -100,11 +101,11 @@ func (storage *PostgresDBStorage) UpdateOrCreateGauge(ctx context.Context, name 
 				metric.ID, metric.MType, metric.Value,
 			)
 			if err != nil {
-				return value, models.MetricSaveError{Err: err}
+				return nil, models.MetricSaveError{Err: err}
 			}
-			return value, nil
+			return &metric, nil
 		} else {
-			return value, models.MetricSaveError{Err: err}
+			return nil, models.MetricSaveError{Err: err}
 		}
 	}
 
@@ -114,10 +115,12 @@ func (storage *PostgresDBStorage) UpdateOrCreateGauge(ctx context.Context, name 
 		value, metric.ID, metric.MType,
 	)
 	if err != nil {
-		return value, models.MetricSaveError{Err: err}
+		return nil, models.MetricSaveError{Err: err}
 	}
+	metric.Value = new(float64)
+	*metric.Value = value
 
-	return value, nil
+	return &metric, nil
 }
 
 func (storage *PostgresDBStorage) UpdateOrCreateMetric(ctx context.Context, metric models.Metrics) (models.Metrics, error) {

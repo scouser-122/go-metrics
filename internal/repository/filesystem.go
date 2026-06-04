@@ -23,22 +23,28 @@ func CreateFileSystemStorage(config *config.ServerConfig) *FileSystemStorage {
 	}
 }
 
-func (storage *FileSystemStorage) UpdateOrCreateCounter(ctx context.Context, name string, value int64) (int64, error) {
-	value, err := storage.MemoryStorage.UpdateOrCreateCounter(ctx, name, value)
+func (storage *FileSystemStorage) UpdateOrCreateCounter(ctx context.Context, name string, value int64) (*models.Metrics, error) {
+	metric, err := storage.MemoryStorage.UpdateOrCreateCounter(ctx, name, value)
 	if err != nil {
-		return value, err
+		return nil, err
 	}
 	err = storage.saveMetricsInFS()
-	return value, err
+	if err != nil {
+		return nil, err
+	}
+	return metric, nil
 }
 
-func (storage *FileSystemStorage) UpdateOrCreateGauge(ctx context.Context, name string, value float64) (float64, error) {
-	value, err := storage.MemoryStorage.UpdateOrCreateGauge(ctx, name, value)
+func (storage *FileSystemStorage) UpdateOrCreateGauge(ctx context.Context, name string, value float64) (*models.Metrics, error) {
+	metric, err := storage.MemoryStorage.UpdateOrCreateGauge(ctx, name, value)
 	if err != nil {
-		return value, err
+		return nil, err
 	}
 	err = storage.saveMetricsInFS()
-	return value, err
+	if err != nil {
+		return nil, err
+	}
+	return metric, nil
 }
 
 func (storage *FileSystemStorage) UpdateOrCreateMetric(ctx context.Context, metric models.Metrics) (models.Metrics, error) {

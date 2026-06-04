@@ -9,6 +9,12 @@ type ServerConfig struct {
 	Restore          bool   `env:"RESTORE"`
 	DBDataSourceName string `env:"DATABASE_DSN"`
 	HMACKey          string `env:"KEY"`
+
+	// AuditFile path to file where audit events should be written
+	AuditFile string `env:"AUDIT_FILE"`
+
+	// AuditURL URL of service where audit events should be sent to
+	AuditURL string `env:"AUDIT_URL"`
 }
 
 func DefaultServerConfig() ServerConfig {
@@ -21,5 +27,7 @@ func DefaultServerConfig() ServerConfig {
 		Restore:          false,
 		DBDataSourceName: "postgres://postgres:password@localhost:5432/mydb?sslmode=disable",
 		HMACKey:          "",
+		AuditFile:        "",
+		AuditURL:         "",
 	}
 }

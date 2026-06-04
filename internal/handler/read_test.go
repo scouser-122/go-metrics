@@ -40,9 +40,8 @@ func TestListHandler(t *testing.T) {
 	cryptoService := service.CryptoService{
 		ServerConfig: &config,
 	}
-	metricsService := service.MetricsService{}
-	metricsService.Initialize(&config, &db.PostgresDatabase{})
-	handlers := InitializeHandlers(&metricsService, &cryptoService, nil)
+	metricsService := service.NewMetricsService(&config, &db.PostgresDatabase{})
+	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
 	for _, test := range listTests {
 		t.Run(test.name, func(t *testing.T) {
 			r := CreateChiRouter(&handlers)
@@ -255,13 +254,12 @@ func TestValueJSONHandler(t *testing.T) {
 	for _, test := range valueJSONTests {
 		t.Run(test.name, func(t *testing.T) {
 			config := config.DefaultServerConfig()
-			metricsService := service.MetricsService{}
+			metricsService := service.NewMetricsService(&config, &db.PostgresDatabase{})
 			cryptoService := service.CryptoService{
 				ServerConfig: &config,
 			}
-			metricsService.Initialize(&config, &db.PostgresDatabase{})
 			metricsService.Storage.SaveMetrics(context.Background(), test.metrics)
-			handlers := InitializeHandlers(&metricsService, &cryptoService, nil)
+			handlers := InitializeHandlers(metricsService, &cryptoService, nil)
 
 			r := CreateChiRouter(&handlers)
 

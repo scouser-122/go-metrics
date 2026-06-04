@@ -19,28 +19,32 @@ type MetricsService struct {
 	fsStorage    repository.MetricsStorage
 }
 
-func (service *MetricsService) Initialize(config *config.ServerConfig, db *db.PostgresDatabase) {
-	service.serverConfig = config
-	service.createStorage(config, db)
+// NewMetricsService creates new MetricsService instance
+func NewMetricsService(serverConfig *config.ServerConfig, db *db.PostgresDatabase) *MetricsService {
+	service := MetricsService{
+		serverConfig: serverConfig,
+	}
+	service.createStorage(db)
+	return &service
 }
 
-func (service *MetricsService) createStorage(config *config.ServerConfig, db *db.PostgresDatabase) {
+func (service *MetricsService) createStorage(db *db.PostgresDatabase) {
 	if err := db.Ping(context.Background()); err == nil {
 		logger.Sugar.Infof("use database storage")
 		service.Storage = &repository.PostgresDBStorage{
 			Database: db,
 		}
-		if config.StorePath != "" {
+		if service.serverConfig.StorePath != "" {
 			logger.Sugar.Infof("additionaly use filesystem storage")
-			service.fsStorage = repository.CreateFileSystemStorage(config)
+			service.fsStorage = repository.CreateFileSystemStorage(service.serverConfig)
 			service.restoreMetricsIfRequired()
 			service.storeMetricsInFsIfRequired()
 		}
 		return
 	}
-	if config.StorePath != "" {
+	if service.serverConfig.StorePath != "" {
 		logger.Sugar.Infof("use filesystem storage")
-		service.fsStorage = repository.CreateFileSystemStorage(config)
+		service.fsStorage = repository.CreateFileSystemStorage(service.serverConfig)
 		service.Storage = service.fsStorage
 		service.restoreMetricsIfRequired()
 		service.storeMetricsInFsIfRequired()
@@ -67,11 +71,11 @@ func (service *MetricsService) SaveMetric(ctx context.Context, metricType string
 				Err:     err,
 			}
 		}
-		saveResult, err := service.Storage.UpdateOrCreateCounter(ctx, name, counterValue)
+		metric, err := service.Storage.UpdateOrCreateCounter(ctx, name, counterValue)
 		if err != nil {
 			return result, err
 		}
-		result = strconv.FormatInt(saveResult, 10)
+		result = strconv.FormatInt(*metric.Delta, 10)
 
 	case models.Gauge:
 		gaugeValue, err := strconv.ParseFloat(value, 64)
@@ -81,11 +85,11 @@ func (service *MetricsService) SaveMetric(ctx context.Context, metricType string
 				Err:     err,
 			}
 		}
-		saveResult, err := service.Storage.UpdateOrCreateGauge(ctx, name, gaugeValue)
+		metric, err := service.Storage.UpdateOrCreateGauge(ctx, name, gaugeValue)
 		if err != nil {
 			return result, err
 		}
-		result = strconv.FormatFloat(saveResult, 'f', -1, 64)
+		result = strconv.FormatFloat(*metric.Value, 'f', -1, 64)
 	}
 
 	return result, nil

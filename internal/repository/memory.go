@@ -12,13 +12,13 @@ type MemStorage struct {
 	Metrics []models.Metrics
 }
 
-func (memStorage *MemStorage) UpdateOrCreateCounter(ctx context.Context, name string, value int64) (int64, error) {
+func (memStorage *MemStorage) UpdateOrCreateCounter(ctx context.Context, name string, value int64) (*models.Metrics, error) {
 	index := slices.IndexFunc(memStorage.Metrics, func(m models.Metrics) bool {
 		return m.MType == models.Counter && m.ID == name
 	})
 	if index != -1 {
 		*memStorage.Metrics[index].Delta += value
-		return *memStorage.Metrics[index].Delta, nil
+		return &memStorage.Metrics[index], nil
 	} else {
 		metric := models.Metrics{
 			ID:    name,
@@ -27,17 +27,17 @@ func (memStorage *MemStorage) UpdateOrCreateCounter(ctx context.Context, name st
 		}
 		*metric.Delta = value
 		memStorage.Metrics = append(memStorage.Metrics, metric)
-		return value, nil
+		return &metric, nil
 	}
 }
 
-func (memStorage *MemStorage) UpdateOrCreateGauge(ctx context.Context, name string, value float64) (float64, error) {
+func (memStorage *MemStorage) UpdateOrCreateGauge(ctx context.Context, name string, value float64) (*models.Metrics, error) {
 	index := slices.IndexFunc(memStorage.Metrics, func(m models.Metrics) bool {
 		return m.MType == models.Gauge && m.ID == name
 	})
 	if index != -1 {
 		*memStorage.Metrics[index].Value = value
-		return *memStorage.Metrics[index].Value, nil
+		return &memStorage.Metrics[index], nil
 	} else {
 		metric := models.Metrics{
 			ID:    name,
@@ -46,7 +46,7 @@ func (memStorage *MemStorage) UpdateOrCreateGauge(ctx context.Context, name stri
 		}
 		*metric.Value = value
 		memStorage.Metrics = append(memStorage.Metrics, metric)
-		return value, nil
+		return &metric, nil
 	}
 }
 
