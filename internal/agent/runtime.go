@@ -3,6 +3,9 @@ package agent
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/rand/v2"
@@ -196,13 +199,19 @@ func (agent *RuntimeMetricsAgent) SendMetricJSON(client *resty.Client, metric *m
 	if err := gzw.Close(); err != nil {
 		return "", err
 	}
-	resp, err := client.R().
+	request := client.R().
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("Accept-Encoding", "gzip").
 		SetBody(&buf).
-		SetResult(&savedMetric).
-		Post(url)
+		SetResult(&savedMetric)
+	if agent.Config.HMACKey != "" {
+		h := hmac.New(sha256.New, []byte(agent.Config.HMACKey))
+		h.Write(buf.Bytes())
+		hash := h.Sum(nil)
+		request = request.SetHeader("HashSHA256", hex.EncodeToString(hash))
+	}
+	resp, err := request.Post(url)
 	if err != nil {
 		return "", err
 	}
@@ -227,13 +236,19 @@ func (agent *RuntimeMetricsAgent) SendMetricsJSON(client *resty.Client, metrics 
 		return "", err
 	}
 	response := models.ResponsePayload{}
-	resp, err := client.R().
+	request := client.R().
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("Accept-Encoding", "gzip").
 		SetBody(&buf).
-		SetResult(&response).
-		Post(url)
+		SetResult(&response)
+	if agent.Config.HMACKey != "" {
+		h := hmac.New(sha256.New, []byte(agent.Config.HMACKey))
+		h.Write(jsonData)
+		hash := h.Sum(nil)
+		request = request.SetHeader("HashSHA256", hex.EncodeToString(hash))
+	}
+	resp, err := request.Post(url)
 	if err != nil {
 		return "", err
 	}

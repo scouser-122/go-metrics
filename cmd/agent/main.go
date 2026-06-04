@@ -28,6 +28,7 @@ func parseFlags(agentConfig *agent.AgentConfig) {
 	flag.IntVar(&agentConfig.PollInterval, "p", 2, "metrics poll interval in seconds")
 	flag.StringVar(&agentConfig.LogLevel, "l", "info", "logging level")
 	flag.StringVar(&agentConfig.Environment, "e", "dev", "agent environment")
+	flag.StringVar(&agentConfig.HMACKey, "k", "", "HMAC key to calculate hash of request")
 	flag.Parse()
 	agentConfig.CheckAndCorrectServerAddress()
 }

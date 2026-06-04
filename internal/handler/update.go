@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -15,7 +16,8 @@ import (
 )
 
 type UpdateHandler struct {
-	Service *service.MetricsService
+	MetricsService *service.MetricsService
+	cryptoService  *service.CryptoService
 }
 
 func (h *UpdateHandler) UpdateHandler(res http.ResponseWriter, req *http.Request) {
@@ -38,7 +40,7 @@ func (h *UpdateHandler) processUpdateRequest(res http.ResponseWriter, req *http.
 	name := chi.URLParam(req, "name")
 	value := chi.URLParam(req, "value")
 
-	result, err := h.Service.SaveMetric(req.Context(), metricType, name, value)
+	result, err := h.MetricsService.SaveMetric(req.Context(), metricType, name, value)
 	if err != nil {
 		if errors.As(err, &models.ErrIncorrectType) {
 			logger.Sugar.Errorf("metric type incorrect: %q", err.Error())
@@ -61,15 +63,31 @@ func (h *UpdateHandler) processUpdateRequest(res http.ResponseWriter, req *http.
 }
 
 func (h *UpdateHandler) processUpdateJSONRequest(res http.ResponseWriter, req *http.Request) {
+	bodyBuf, err := io.ReadAll(req.Body)
+	if err != nil {
+		logger.Log.Error("cannot read request body ", zap.Error(err))
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	hashHeader := req.Header.Get("HashSHA256")
+	if h.cryptoService.KeyPresent() && hashHeader != "" {
+		bodyHash := h.cryptoService.CalculateHash(bodyBuf)
+		if hashHeader != bodyHash {
+			logger.Sugar.Errorf("HashSHA256 header %q doesn't match body hash %q", hashHeader, bodyHash)
+			res.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+
 	var metric models.Metrics
-	dec := json.NewDecoder(req.Body)
-	if err := dec.Decode(&metric); err != nil {
+	if err := json.Unmarshal(bodyBuf, &metric); err != nil {
 		logger.Log.Error("cannot decode request JSON body ", zap.Error(err))
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	result, err := h.Service.SaveMetricModel(req.Context(), &metric)
+	result, err := h.MetricsService.SaveMetricModel(req.Context(), &metric)
 	if err != nil {
 		if errors.As(err, &models.ErrIncorrectType) {
 			logger.Sugar.Error("metric type incorrect ", zap.Error(err))
@@ -91,21 +109,41 @@ func (h *UpdateHandler) processUpdateJSONRequest(res http.ResponseWriter, req *h
 	}
 
 	res.Header().Set("Content-Type", "application/json")
+	if h.cryptoService.KeyPresent() {
+		bodyHash := h.cryptoService.CalculateHash(buf.Bytes())
+		res.Header().Set("HashSHA256", bodyHash)
+	}
 	logger.Sugar.Info("metric saved successfully ", zap.String("metric", result.String()))
 	res.WriteHeader(http.StatusOK)
 	res.Write(buf.Bytes())
 }
 
 func (h *UpdateHandler) processUpdateJSONArrayRequest(res http.ResponseWriter, req *http.Request) {
+	bodyBuf, err := io.ReadAll(req.Body)
+	if err != nil {
+		logger.Log.Error("cannot read request body ", zap.Error(err))
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	hashHeader := req.Header.Get("HashSHA256")
+	if h.cryptoService.KeyPresent() && hashHeader != "" {
+		bodyHash := h.cryptoService.CalculateHash(bodyBuf)
+		if hashHeader != bodyHash {
+			logger.Sugar.Errorf("HashSHA256 header %q doesn't match body hash %q", hashHeader, bodyHash)
+			res.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+
 	var metrics []models.Metrics
-	dec := json.NewDecoder(req.Body)
-	if err := dec.Decode(&metrics); err != nil {
+	if err := json.Unmarshal(bodyBuf, &metrics); err != nil {
 		logger.Log.Error("cannot decode request JSON body ", zap.Error(err))
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	count, err := h.Service.SaveMetricsModel(req.Context(), metrics)
+	count, err := h.MetricsService.SaveMetricsModel(req.Context(), metrics)
 	if err != nil {
 		if errors.As(err, &models.ErrIncorrectType) {
 			logger.Sugar.Error("metrics type incorrect ", zap.Error(err))
@@ -136,6 +174,11 @@ func (h *UpdateHandler) processUpdateJSONArrayRequest(res http.ResponseWriter, r
 	}
 
 	res.Header().Set("Content-Type", "application/json")
+	// bufBytes := buf.Bytes()
+	// if h.cryptoService.KeyPresent() {
+	// 	bodyHash := h.cryptoService.CalculateHash(bufBytes)
+	// 	res.Header().Set("HashSHA256", bodyHash)
+	// }
 	logger.Sugar.Info("metrics saved successfully ", zap.Int64("count", count))
 	res.WriteHeader(http.StatusOK)
 	res.Write(buf.Bytes())

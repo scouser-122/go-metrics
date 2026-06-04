@@ -4,10 +4,9 @@ import (
 	"net/http"
 
 	"github.com/scouser-122/go-metrics/internal/config"
-	"github.com/scouser-122/go-metrics/internal/config/db"
 	"github.com/scouser-122/go-metrics/internal/handler"
 	"github.com/scouser-122/go-metrics/internal/logger"
-	"github.com/scouser-122/go-metrics/internal/repository/postgres"
+	"github.com/scouser-122/go-metrics/internal/repository/db"
 	"github.com/scouser-122/go-metrics/internal/service"
 )
 
@@ -19,12 +18,7 @@ func main() {
 		panic(err)
 	}
 
-	database := postgres.PostgresDatabase{
-		Config: db.DBConnectionConfig{
-			DSN:         serverConfig.DBDataSourceName,
-			RetryConfig: config.DefaultRetryConfig(),
-		},
-	}
+	database := db.NewPostgresDB(serverConfig)
 	if err := database.Open(); err != nil {
 		logger.Sugar.Errorf("cannot connect to database: %w", err)
 	}
@@ -33,7 +27,11 @@ func main() {
 	metricsService := service.MetricsService{}
 	metricsService.Initialize(&serverConfig, &database)
 
-	handlers := handler.InitializeHandlers(&metricsService, &database)
+	cryptoService := service.CryptoService{
+		ServerConfig: &serverConfig,
+	}
+
+	handlers := handler.InitializeHandlers(&metricsService, &cryptoService, &database)
 
 	r := handler.CreateChiRouter(&handlers)
 

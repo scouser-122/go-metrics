@@ -10,7 +10,7 @@ import (
 	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
 	"github.com/scouser-122/go-metrics/internal/repository"
-	"github.com/scouser-122/go-metrics/internal/repository/postgres"
+	"github.com/scouser-122/go-metrics/internal/repository/db"
 )
 
 type MetricsService struct {
@@ -19,12 +19,12 @@ type MetricsService struct {
 	fsStorage    repository.MetricsStorage
 }
 
-func (service *MetricsService) Initialize(config *config.ServerConfig, db *postgres.PostgresDatabase) {
+func (service *MetricsService) Initialize(config *config.ServerConfig, db *db.PostgresDatabase) {
 	service.serverConfig = config
 	service.createStorage(config, db)
 }
 
-func (service *MetricsService) createStorage(config *config.ServerConfig, db *postgres.PostgresDatabase) {
+func (service *MetricsService) createStorage(config *config.ServerConfig, db *db.PostgresDatabase) {
 	if err := db.Ping(context.Background()); err == nil {
 		logger.Sugar.Infof("use database storage")
 		service.Storage = &repository.PostgresDBStorage{

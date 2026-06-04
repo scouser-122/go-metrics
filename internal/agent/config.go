@@ -14,6 +14,7 @@ type AgentConfig struct {
 	PollInterval       int    `env:"POLL_INTERVAL"`
 	LogLevel           string `env:"LOG_LEVEL"`
 	Environment        string `env:"AGENT_ENVIRONMENT"`
+	HMACKey            string `env:"KEY"`
 	RetryConfig        config.RetryConfig
 }
 

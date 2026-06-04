@@ -10,7 +10,7 @@ import (
 
 	"github.com/scouser-122/go-metrics/internal/config"
 	"github.com/scouser-122/go-metrics/internal/repository"
-	"github.com/scouser-122/go-metrics/internal/repository/postgres"
+	"github.com/scouser-122/go-metrics/internal/repository/db"
 	"github.com/scouser-122/go-metrics/internal/service"
 	"github.com/stretchr/testify/assert"
 )
@@ -28,7 +28,7 @@ type request struct {
 	body        string
 }
 
-var updateTests = []struct {
+var updateTestsMemStorage = []struct {
 	name    string
 	request request
 	want    want
@@ -133,16 +133,19 @@ var updateTests = []struct {
 	},
 }
 
-func TestUpdateHandler(t *testing.T) {
-	for _, test := range updateTests {
+func TestUpdateHandlerMemStorage(t *testing.T) {
+	for _, test := range updateTestsMemStorage {
 		t.Run(test.name, func(t *testing.T) {
 			config := config.DefaultServerConfig()
 			memStorage := repository.MemStorage{}
 			metricsService := service.MetricsService{
 				Storage: &memStorage,
 			}
-			metricsService.Initialize(&config, &postgres.PostgresDatabase{})
-			handlers := InitializeHandlers(&metricsService, nil)
+			cryptoService := service.CryptoService{
+				ServerConfig: &config,
+			}
+			metricsService.Initialize(&config, &db.PostgresDatabase{})
+			handlers := InitializeHandlers(&metricsService, &cryptoService, nil)
 
 			r := CreateChiRouter(&handlers)
 
@@ -286,23 +289,32 @@ func TestUpdateJSONHandler(t *testing.T) {
 	for _, test := range updateJSONTests {
 		t.Run(test.name, func(t *testing.T) {
 			config := config.DefaultServerConfig()
+			config.HMACKey = "secret_key"
 			memStorage := repository.MemStorage{}
+			cryptoService := service.CryptoService{
+				ServerConfig: &config,
+			}
 			metricsService := service.MetricsService{
 				Storage: &memStorage,
 			}
-			metricsService.Initialize(&config, &postgres.PostgresDatabase{})
-			handlers := InitializeHandlers(&metricsService, nil)
+			metricsService.Initialize(&config, &db.PostgresDatabase{})
+			handlers := InitializeHandlers(&metricsService, &cryptoService, nil)
 
 			r := CreateChiRouter(&handlers)
 
 			var bodyReader io.Reader
+			var bodyHash string
 			if test.request.body != "" {
 				jsonData := []byte(test.request.body)
 				bodyReader = bytes.NewBuffer(jsonData)
+				bodyHash = cryptoService.CalculateHash(jsonData)
 			}
 
 			request := httptest.NewRequest(test.request.method, test.request.path, bodyReader)
 			request.Header.Add("Content-Type", test.request.contentType)
+			if bodyHash != "" {
+				request.Header.Add("HashSHA256", bodyHash)
+			}
 
 			// создаём новый Recorder
 			w := httptest.NewRecorder()

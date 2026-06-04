@@ -16,6 +16,7 @@ func parseFlags(config *config.ServerConfig) {
 	flag.StringVar(&config.StorePath, "f", "", "metrics store file path")
 	flag.BoolVar(&config.Restore, "r", false, "should restore metrics data from storage file or not")
 	flag.StringVar(&config.DBDataSourceName, "d", "", "data source name for database connection")
+	flag.StringVar(&config.HMACKey, "k", "", "HMAC key to calculate hash of request")
 	flag.Parse()
 }
 

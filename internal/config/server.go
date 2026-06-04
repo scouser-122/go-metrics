@@ -8,6 +8,7 @@ type ServerConfig struct {
 	StorePath        string `env:"FILE_STORAGE_PATH"`
 	Restore          bool   `env:"RESTORE"`
 	DBDataSourceName string `env:"DATABASE_DSN"`
+	HMACKey          string `env:"KEY"`
 }
 
 func DefaultServerConfig() ServerConfig {
@@ -19,5 +20,6 @@ func DefaultServerConfig() ServerConfig {
 		StorePath:        "",
 		Restore:          false,
 		DBDataSourceName: "postgres://postgres:password@localhost:5432/mydb?sslmode=disable",
+		HMACKey:          "",
 	}
 }

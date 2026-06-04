@@ -12,7 +12,7 @@ import (
 	"github.com/scouser-122/go-metrics/internal/config"
 	models "github.com/scouser-122/go-metrics/internal/model"
 	"github.com/scouser-122/go-metrics/internal/repository"
-	"github.com/scouser-122/go-metrics/internal/repository/postgres"
+	"github.com/scouser-122/go-metrics/internal/repository/db"
 	"github.com/scouser-122/go-metrics/internal/service"
 	"github.com/stretchr/testify/assert"
 )
@@ -36,12 +36,13 @@ var listTests = []struct {
 }
 
 func TestListHandler(t *testing.T) {
-	memStorage := repository.MemStorage{}
-
-	metricsService := service.MetricsService{
-		Storage: &memStorage,
+	config := config.DefaultServerConfig()
+	cryptoService := service.CryptoService{
+		ServerConfig: &config,
 	}
-	handlers := InitializeHandlers(&metricsService, nil)
+	metricsService := service.MetricsService{}
+	metricsService.Initialize(&config, &db.PostgresDatabase{})
+	handlers := InitializeHandlers(&metricsService, &cryptoService, nil)
 	for _, test := range listTests {
 		t.Run(test.name, func(t *testing.T) {
 			r := CreateChiRouter(&handlers)
@@ -111,6 +112,7 @@ var valueTests = []struct {
 }
 
 func TestValueHandler(t *testing.T) {
+	config := config.DefaultServerConfig()
 	memStorage := repository.MemStorage{}
 	memStorage.Metrics = append(memStorage.Metrics, models.Metrics{
 		ID:    "PollCount",
@@ -126,7 +128,10 @@ func TestValueHandler(t *testing.T) {
 	metricsService := service.MetricsService{
 		Storage: &memStorage,
 	}
-	handlers := InitializeHandlers(&metricsService, nil)
+	cryptoService := service.CryptoService{
+		ServerConfig: &config,
+	}
+	handlers := InitializeHandlers(&metricsService, &cryptoService, nil)
 	for _, test := range valueTests {
 		t.Run(test.name, func(t *testing.T) {
 			r := CreateChiRouter(&handlers)
@@ -251,9 +256,12 @@ func TestValueJSONHandler(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			config := config.DefaultServerConfig()
 			metricsService := service.MetricsService{}
-			metricsService.Initialize(&config, &postgres.PostgresDatabase{})
+			cryptoService := service.CryptoService{
+				ServerConfig: &config,
+			}
+			metricsService.Initialize(&config, &db.PostgresDatabase{})
 			metricsService.Storage.SaveMetrics(context.Background(), test.metrics)
-			handlers := InitializeHandlers(&metricsService, nil)
+			handlers := InitializeHandlers(&metricsService, &cryptoService, nil)
 
 			r := CreateChiRouter(&handlers)
 
