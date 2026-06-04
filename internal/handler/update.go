@@ -174,11 +174,10 @@ func (h *UpdateHandler) processUpdateJSONArrayRequest(res http.ResponseWriter, r
 	}
 
 	res.Header().Set("Content-Type", "application/json")
-	// bufBytes := buf.Bytes()
-	// if h.cryptoService.KeyPresent() {
-	// 	bodyHash := h.cryptoService.CalculateHash(bufBytes)
-	// 	res.Header().Set("HashSHA256", bodyHash)
-	// }
+	if h.cryptoService.KeyPresent() {
+		bodyHash := h.cryptoService.CalculateHash(buf.Bytes())
+		res.Header().Set("HashSHA256", bodyHash)
+	}
 	logger.Sugar.Info("metrics saved successfully ", zap.Int64("count", count))
 	res.WriteHeader(http.StatusOK)
 	res.Write(buf.Bytes())
