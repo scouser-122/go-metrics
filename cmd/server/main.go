@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"net/http"
 
+	"github.com/botchris/go-pubsub/provider/memory"
 	"github.com/scouser-122/go-metrics/internal/config"
 	"github.com/scouser-122/go-metrics/internal/handler"
 	"github.com/scouser-122/go-metrics/internal/logger"
@@ -24,7 +26,13 @@ func main() {
 	}
 	defer database.Close()
 
-	metricsService := service.NewMetricsService(&serverConfig, &database)
+	eventBroker := memory.NewBroker()
+	brokerContext, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	auditService := service.NewAuditService(&serverConfig)
+	auditService.SubscribeToMetricEvents(eventBroker, brokerContext)
+
+	metricsService := service.NewMetricsService(&serverConfig, &database, eventBroker)
 
 	cryptoService := service.CryptoService{
 		ServerConfig: &serverConfig,

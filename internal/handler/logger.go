@@ -2,8 +2,11 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"io"
+	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -49,7 +52,8 @@ func RequestLogger(h http.HandlerFunc) http.HandlerFunc {
 			r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		}
 
-		h(&lw, r)
+		ctx := context.WithValue(r.Context(), models.IpAddressContextKey, getClientIP(r))
+		h(&lw, r.WithContext(ctx))
 
 		duration := time.Since(start)
 
@@ -60,4 +64,23 @@ func RequestLogger(h http.HandlerFunc) http.HandlerFunc {
 			duration,
 		)
 	})
+}
+
+func getClientIP(r *http.Request) string {
+	xff := r.Header.Get("X-Forwarded-For")
+	if xff != "" {
+		ips := strings.Split(xff, ",")
+		clientIP := strings.TrimSpace(ips[0])
+		if clientIP != "" {
+			return clientIP
+		}
+	}
+
+	xri := r.Header.Get("X-Real-IP")
+	if xri != "" {
+		return strings.TrimSpace(xri)
+	}
+
+	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+	return ip
 }

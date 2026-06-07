@@ -40,7 +40,7 @@ func TestListHandler(t *testing.T) {
 	cryptoService := service.CryptoService{
 		ServerConfig: &config,
 	}
-	metricsService := service.NewMetricsService(&config, &db.PostgresDatabase{})
+	metricsService := service.NewMetricsService(&config, &db.PostgresDatabase{}, nil)
 	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
 	for _, test := range listTests {
 		t.Run(test.name, func(t *testing.T) {
@@ -254,7 +254,7 @@ func TestValueJSONHandler(t *testing.T) {
 	for _, test := range valueJSONTests {
 		t.Run(test.name, func(t *testing.T) {
 			config := config.DefaultServerConfig()
-			metricsService := service.NewMetricsService(&config, &db.PostgresDatabase{})
+			metricsService := service.NewMetricsService(&config, &db.PostgresDatabase{}, nil)
 			cryptoService := service.CryptoService{
 				ServerConfig: &config,
 			}

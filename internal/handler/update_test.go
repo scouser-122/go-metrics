@@ -2,12 +2,14 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/botchris/go-pubsub/provider/memory"
 	"github.com/scouser-122/go-metrics/internal/config"
 	"github.com/scouser-122/go-metrics/internal/repository/db"
 	"github.com/scouser-122/go-metrics/internal/service"
@@ -135,11 +137,18 @@ var updateTestsMemStorage = []struct {
 func TestUpdateHandlerMemStorage(t *testing.T) {
 	for _, test := range updateTestsMemStorage {
 		t.Run(test.name, func(t *testing.T) {
-			config := config.DefaultServerConfig()
+			serverConfig := config.DefaultServerConfig()
 			cryptoService := service.CryptoService{
-				ServerConfig: &config,
+				ServerConfig: &serverConfig,
 			}
-			metricsService := service.NewMetricsService(&config, &db.PostgresDatabase{})
+
+			eventBroker := memory.NewBroker()
+			brokerContext, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			auditService := service.NewAuditService(&serverConfig)
+			auditService.SubscribeToMetricEvents(eventBroker, brokerContext)
+
+			metricsService := service.NewMetricsService(&serverConfig, &db.PostgresDatabase{}, eventBroker)
 
 			handlers := InitializeHandlers(metricsService, &cryptoService, nil)
 
@@ -284,12 +293,19 @@ var updateJSONTests = []struct {
 func TestUpdateJSONHandler(t *testing.T) {
 	for _, test := range updateJSONTests {
 		t.Run(test.name, func(t *testing.T) {
-			config := config.DefaultServerConfig()
-			config.HMACKey = "secret_key"
+			serverConfig := config.DefaultServerConfig()
+			serverConfig.HMACKey = "secret_key"
 			cryptoService := service.CryptoService{
-				ServerConfig: &config,
+				ServerConfig: &serverConfig,
 			}
-			metricsService := service.NewMetricsService(&config, &db.PostgresDatabase{})
+
+			eventBroker := memory.NewBroker()
+			brokerContext, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			auditService := service.NewAuditService(&serverConfig)
+			auditService.SubscribeToMetricEvents(eventBroker, brokerContext)
+
+			metricsService := service.NewMetricsService(&serverConfig, &db.PostgresDatabase{}, eventBroker)
 			handlers := InitializeHandlers(metricsService, &cryptoService, nil)
 
 			r := CreateChiRouter(&handlers)

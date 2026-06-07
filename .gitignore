@@ -25,3 +25,4 @@ vendor/
 .vscode
 .DS_Store
 cmd/server/metrics_data.json
+cmd/server/audit_file.txt

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/botchris/go-pubsub"
 	"github.com/scouser-122/go-metrics/internal/config"
 	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
@@ -17,12 +18,18 @@ type MetricsService struct {
 	Storage      repository.MetricsStorage
 	serverConfig *config.ServerConfig
 	fsStorage    repository.MetricsStorage
+	eventBroker  pubsub.Broker
 }
 
 // NewMetricsService creates new MetricsService instance
-func NewMetricsService(serverConfig *config.ServerConfig, db *db.PostgresDatabase) *MetricsService {
+func NewMetricsService(
+	serverConfig *config.ServerConfig,
+	db *db.PostgresDatabase,
+	eventBroker pubsub.Broker,
+) *MetricsService {
 	service := MetricsService{
 		serverConfig: serverConfig,
+		eventBroker:  eventBroker,
 	}
 	service.createStorage(db)
 	return &service
@@ -75,6 +82,7 @@ func (service *MetricsService) SaveMetric(ctx context.Context, metricType string
 		if err != nil {
 			return result, err
 		}
+		service.logMetricsReceiveEventToAudit(ctx, []models.Metrics{*metric})
 		result = strconv.FormatInt(*metric.Delta, 10)
 
 	case models.Gauge:
@@ -89,6 +97,7 @@ func (service *MetricsService) SaveMetric(ctx context.Context, metricType string
 		if err != nil {
 			return result, err
 		}
+		service.logMetricsReceiveEventToAudit(ctx, []models.Metrics{*metric})
 		result = strconv.FormatFloat(*metric.Value, 'f', -1, 64)
 	}
 
@@ -116,6 +125,7 @@ func (service *MetricsService) SaveMetricModel(ctx context.Context, metric *mode
 		}
 	}
 	result, err := service.Storage.UpdateOrCreateMetric(ctx, *metric)
+	service.logMetricsReceiveEventToAudit(ctx, []models.Metrics{result})
 	return result, err
 }
 
@@ -143,6 +153,7 @@ func (service *MetricsService) SaveMetricsModel(ctx context.Context, metrics []m
 	}
 	var err error
 	result, err = service.Storage.UpdateOrCreateMetrics(ctx, metrics)
+	service.logMetricsReceiveEventToAudit(ctx, metrics)
 	return result, err
 }
 
@@ -211,4 +222,19 @@ func (service *MetricsService) storeMetricsInFsWorker() {
 		ctx := context.Background()
 		service.fsStorage.SaveMetrics(ctx, service.Storage.GetAllMetrics(ctx))
 	}
+}
+
+func (service *MetricsService) logMetricsReceiveEventToAudit(ctx context.Context, metrics []models.Metrics) {
+	if service.eventBroker == nil {
+		return
+	}
+	event := models.MetricsReceivedEvent{}
+	event.Ts = time.Now().UnixMilli()
+	if ipAddress, ok := ctx.Value(models.IpAddressContextKey).(string); ok {
+		event.IpAddress = ipAddress
+	}
+	for _, m := range metrics {
+		event.Metrics = append(event.Metrics, m.ID)
+	}
+	service.eventBroker.Publish(ctx, models.MetricEventTopic, event)
 }

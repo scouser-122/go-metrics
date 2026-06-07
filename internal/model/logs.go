@@ -24,3 +24,5 @@ func (r *LoggingResponseWriter) WriteHeader(statusCode int) {
 	r.ResponseWriter.WriteHeader(statusCode)
 	r.ResponseData.Status = statusCode
 }
+
+const IpAddressContextKey string = "clientIpAddress"

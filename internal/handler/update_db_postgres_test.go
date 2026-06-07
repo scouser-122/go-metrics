@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/botchris/go-pubsub/provider/memory"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/scouser-122/go-metrics/internal/config"
 	models "github.com/scouser-122/go-metrics/internal/model"
@@ -172,13 +174,20 @@ var updateTestsDBPostgres = []struct {
 func TestUpdateHandlerDBPostgres(t *testing.T) {
 	for _, test := range updateTestsDBPostgres {
 		t.Run(test.name, func(t *testing.T) {
-			config := config.DefaultServerConfig()
+			serverConfig := config.DefaultServerConfig()
 			cryptoService := service.CryptoService{
-				ServerConfig: &config,
+				ServerConfig: &serverConfig,
 			}
 			test.mockDB.MockPool.MockMethods(test.mockDB)
-			db := db.NewMockPostgresDB(config, test.mockDB.MockPool)
-			metricsService := service.NewMetricsService(&config, &db)
+			db := db.NewMockPostgresDB(serverConfig, test.mockDB.MockPool)
+
+			eventBroker := memory.NewBroker()
+			brokerContext, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			auditService := service.NewAuditService(&serverConfig)
+			auditService.SubscribeToMetricEvents(eventBroker, brokerContext)
+
+			metricsService := service.NewMetricsService(&serverConfig, &db, eventBroker)
 			handlers := InitializeHandlers(metricsService, &cryptoService, nil)
 
 			r := CreateChiRouter(&handlers)

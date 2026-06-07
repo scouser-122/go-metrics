@@ -4,4 +4,4 @@
 
 Пример сборки и запуска из командной строки:
 
-go build -o agent && ./agent -a localhost:45057 -r 5 -p 2 -l info -e dev -k="secret_key"
+go build -o agent && ./agent -a localhost:45057 -r 5 -p 2 -log info -e dev -k="secret_key"
