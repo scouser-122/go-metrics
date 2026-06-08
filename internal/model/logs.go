@@ -25,4 +25,6 @@ func (r *LoggingResponseWriter) WriteHeader(statusCode int) {
 	r.ResponseData.Status = statusCode
 }
 
-const IpAddressContextKey string = "clientIpAddress"
+type contextKey string
+
+const IpAddressContextKey contextKey = "clientIpAddress"
