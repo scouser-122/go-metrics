@@ -52,7 +52,7 @@ func RequestLogger(h http.HandlerFunc) http.HandlerFunc {
 			r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		}
 
-		ctx := context.WithValue(r.Context(), models.IpAddressContextKey, getClientIP(r))
+		ctx := context.WithValue(r.Context(), models.IPAddressContextKey, getClientIP(r))
 		h(&lw, r.WithContext(ctx))
 
 		duration := time.Since(start)

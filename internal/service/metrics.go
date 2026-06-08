@@ -229,9 +229,9 @@ func (service *MetricsService) logMetricsReceiveEventToAudit(ctx context.Context
 		return
 	}
 	event := models.MetricsReceivedEvent{}
-	event.Ts = time.Now().UnixMilli()
-	if ipAddress, ok := ctx.Value(models.IpAddressContextKey).(string); ok {
-		event.IpAddress = ipAddress
+	event.TS = time.Now().UnixMilli()
+	if ipAddress, ok := ctx.Value(models.IPAddressContextKey).(string); ok {
+		event.IPAddress = ipAddress
 	}
 	for _, m := range metrics {
 		event.Metrics = append(event.Metrics, m.ID)

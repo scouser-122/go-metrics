@@ -8,14 +8,14 @@ type MetricEvent interface{}
 type MetricsReceivedEvent struct {
 	MetricEvent `json:"-"`
 
-	// Ts unix timestamp события
-	Ts int64 `json:"ts"`
+	// TS unix timestamp события
+	TS int64 `json:"ts"`
 
 	// Metrics наименование полученных метрик
 	Metrics []string `json:"metrics"`
 
-	// IpAddress IP адрес входящего запроса
-	IpAddress string `json:"ip_address"`
+	// IPAddress IP адрес входящего запроса
+	IPAddress string `json:"ip_address"`
 }
 
 const MetricEventTopic pubsub.Topic = "metricEvents"

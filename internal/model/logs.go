@@ -27,4 +27,4 @@ func (r *LoggingResponseWriter) WriteHeader(statusCode int) {
 
 type contextKey string
 
-const IpAddressContextKey contextKey = "clientIpAddress"
+const IPAddressContextKey contextKey = "clientIpAddress"
