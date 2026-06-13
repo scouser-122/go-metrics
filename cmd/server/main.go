@@ -45,7 +45,7 @@ func main() {
 
 	r := handler.CreateChiRouter(&handlers)
 
-	if serverConfig.ProfileEnabled == true {
+	if serverConfig.ProfileEnabled {
 		go func() {
 			log.Println(http.ListenAndServe("localhost:6060", nil))
 		}()
