@@ -96,6 +96,7 @@ func ExampleReadHandler_ListHandler() {
 	res := w.Result()
 
 	fmt.Println(res.StatusCode)
+	res.Body.Close()
 
 	// Output:
 	// 200
@@ -223,6 +224,7 @@ func ExampleReadHandler_ValueHandler() {
 		panic(err)
 	}
 	fmt.Println(string(bodyBytes))
+	res.Body.Close()
 
 	// Output:
 	// 200
@@ -393,6 +395,7 @@ func ExampleReadHandler_ValueJSONHandler() {
 		panic(err)
 	}
 	fmt.Println(string(bodyBytes))
+	res.Body.Close()
 
 	// Output:
 	// 200

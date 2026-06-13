@@ -212,6 +212,7 @@ func ExampleUpdateHandler_UpdateHandler() {
 		panic(err)
 	}
 	fmt.Println(string(bodyBytes))
+	res.Body.Close()
 
 	// Output:
 	// 200
@@ -420,6 +421,7 @@ func ExampleUpdateHandler_UpdateJSONHandler() {
 		panic(err)
 	}
 	fmt.Println(string(bodyBytes))
+	res.Body.Close()
 
 	// Output:
 	// 200
@@ -519,6 +521,7 @@ func ExampleUpdateHandler_UpdateJSONArrayHandler() {
 		panic(err)
 	}
 	fmt.Println(string(bodyBytes))
+	res.Body.Close()
 
 	// Output:
 	// 200
