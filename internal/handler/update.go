@@ -15,21 +15,57 @@ import (
 	"go.uber.org/zap"
 )
 
+// UpdateHandler handles all update operations for metrics.
 type UpdateHandler struct {
 	MetricsService *service.MetricsService
 	cryptoService  *service.CryptoService
 }
 
+// UpdateHandler handles POST /update/{type}/{name}/{value} requests and updates a metric.
+// @Tags Update
+// @Summary Store metric value by type and name
+// @ID UpdateHandler
+// @Accept  text/plain
+// @Produce text/plain
+// @Param type path string true "Metric type" Enums(counter, gauge) default(counter)
+// @Param name path string true "Metric name"
+// @Param value path number true "Metric value"
+// @Success 200 {string} string  "Metric value"
+// @Success 400 {string} string  "Metric type/format incorrect"
+// @Failure 500 {string} string  "Internal error"
+// @Router /update/{type}/{name}/{value} [post]
 func (h *UpdateHandler) UpdateHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("content-type", "text/plain")
 	h.processUpdateRequest(res, req)
 }
 
+// UpdateJSONHandler handles POST /update requests with JSON body and updates a single metric.
+// @Tags Update
+// @Summary Store metric value by specified params
+// @ID UpdateJSONHandler
+// @Accept  application/json
+// @Produce application/json
+// @Param metric body models.Metrics true "Metric params"
+// @Success 200 {object} models.Metrics "Saved metric data"
+// @Success 400 {string} string  "Metric type/format incorrect"
+// @Failure 500 {string} string  "Internal error"
+// @Router /update/ [post]
 func (h *UpdateHandler) UpdateJSONHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("content-type", "application/json")
 	h.processUpdateJSONRequest(res, req)
 }
 
+// UpdateJSONArrayHandler handles POST /updates requests with JSON array body and updates multiple metrics.
+// @Tags Update
+// @Summary Store many metrics
+// @ID UpdateJSONArrayHandler
+// @Accept  application/json
+// @Produce application/json
+// @Param metric body []models.Metrics true "Metric params"
+// @Success 200 {object} models.ResponsePayload "Metric save status"
+// @Success 400 {string} string  "Metric type/format incorrect"
+// @Failure 500 {string} string  "Internal error"
+// @Router /updates/ [post]
 func (h *UpdateHandler) UpdateJSONArrayHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("content-type", "application/json")
 	h.processUpdateJSONArrayRequest(res, req)

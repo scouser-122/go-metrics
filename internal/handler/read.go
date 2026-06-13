@@ -18,12 +18,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// ReadHandler handles all read operations for metrics including listing and retrieving metric values.
 type ReadHandler struct {
 	Service  *service.MetricsService
 	Database *db.PostgresDatabase
 	tmpl     *template.Template
 }
 
+// PageData represents the data structure for rendering the metrics HTML page.
 type PageData struct {
 	Title       string
 	Subtitle    string
@@ -31,6 +33,7 @@ type PageData struct {
 	LastUpdated string
 }
 
+// CreateTemplate initializes and parses the HTML template for displaying metrics.
 func (h *ReadHandler) CreateTemplate() {
 	var err error
 	h.tmpl, err = template.New("page").Funcs(template.FuncMap{
@@ -107,21 +110,64 @@ func (h *ReadHandler) CreateTemplate() {
 	}
 }
 
+// ListHandler handles GET / requests and returns an HTML page with all metrics.
+// @Tags Read
+// @Summary Metrics list as html page
+// @ID ListHandler
+// @Accept  text/plain
+// @Produce text/html; charset=utf-8
+// @Success 200 {string} string  "Html page with metrics list"
+// @Failure 500 {string} string  "Internal error"
+// @Router / [get]
 func (h *ReadHandler) ListHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/html; charset=utf-8")
 	h.processListRequest(res, req)
 }
 
+// ValueHandler handles GET /value/{type}/{name} requests and returns a metric value as plain text.
+// @Tags Read
+// @Summary Get metric value by type and name
+// @ID ValueHandler
+// @Accept  text/plain
+// @Produce text/plain
+// @Param type path string true "Metric type" Enums(counter, gauge) default(counter)
+// @Param name path string true "Metric name"
+// @Success 200 {string} string  "Metric value"
+// @Success 400 {string} string  "Metric type incorrect"
+// @Success 404 {string} string  "Not found"
+// @Failure 500 {string} string  "Internal error"
+// @Router /value/{type}/{name} [get]
 func (h *ReadHandler) ValueHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/plain")
 	h.processValueRequest(res, req)
 }
 
+// ValueJSONHandler handles POST /value requests and returns a metric value as JSON.
+// @Tags Read
+// @Summary Get metric value by specified params
+// @ID ValueJSONHandler
+// @Accept  application/json
+// @Produce application/json
+// @Param metric body models.Metrics true "Metric params"
+// @Success 200 {object} models.Metrics "Metric data"
+// @Success 400 {string} string  "Metric type incorrect"
+// @Success 404 {string} string  "Not found"
+// @Failure 500 {string} string  "Internal error"
+// @Router /value/ [post]
 func (h *ReadHandler) ValueJSONHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
 	h.processValueJSONRequest(res, req)
 }
 
+// PingDB handles GET /ping requests and checks database connectivity.
+// @Tags Read
+// @Summary Ping DB connection
+// @ID PingDB
+// @Accept  text/plain
+// @Produce text/plain
+// @Success 200 {string} string "ok"
+// @Failure 500 {string} string  "Internal error"
+// @Router /ping [get]
 func (h *ReadHandler) PingDB(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/plain")
 	var status int

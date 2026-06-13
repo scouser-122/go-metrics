@@ -1,0 +1,254 @@
+definitions:
+  models.Metrics:
+    properties:
+      delta:
+        description: Metric delta in case it has counter type.
+        type: integer
+      id:
+        description: The unique identifier for this metric.
+        type: string
+      type:
+        description: Metric type.
+        enum:
+        - counter
+        - gauge
+        type: string
+      value:
+        description: Metric value in case it has counter gauge.
+        type: number
+    required:
+    - id
+    - type
+    type: object
+  models.ResponsePayload:
+    properties:
+      message:
+        example: successfully saved 5 metrics
+        type: string
+      status:
+        example: ok
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /:
+    get:
+      consumes:
+      - text/plain
+      operationId: ListHandler
+      produces:
+      - text/html; charset=utf-8
+      responses:
+        "200":
+          description: Html page with metrics list
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Metrics list as html page
+      tags:
+      - Read
+  /ping:
+    get:
+      consumes:
+      - text/plain
+      operationId: PingDB
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Ping DB connection
+      tags:
+      - Read
+  /update/:
+    post:
+      consumes:
+      - application/json
+      operationId: UpdateJSONHandler
+      parameters:
+      - description: Metric params
+        in: body
+        name: metric
+        required: true
+        schema:
+          $ref: '#/definitions/models.Metrics'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Saved metric data
+          schema:
+            $ref: '#/definitions/models.Metrics'
+        "400":
+          description: Metric type/format incorrect
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Store metric value by specified params
+      tags:
+      - Update
+  /update/{type}/{name}/{value}:
+    post:
+      consumes:
+      - text/plain
+      operationId: UpdateHandler
+      parameters:
+      - default: counter
+        description: Metric type
+        enum:
+        - counter
+        - gauge
+        in: path
+        name: type
+        required: true
+        type: string
+      - description: Metric name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: Metric value
+        in: path
+        name: value
+        required: true
+        type: number
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Metric value
+          schema:
+            type: string
+        "400":
+          description: Metric type/format incorrect
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Store metric value by type and name
+      tags:
+      - Update
+  /updates/:
+    post:
+      consumes:
+      - application/json
+      operationId: UpdateJSONArrayHandler
+      parameters:
+      - description: Metric params
+        in: body
+        name: metric
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/models.Metrics'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Metric save status
+          schema:
+            $ref: '#/definitions/models.ResponsePayload'
+        "400":
+          description: Metric type/format incorrect
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Store many metrics
+      tags:
+      - Update
+  /value/:
+    post:
+      consumes:
+      - application/json
+      operationId: ValueJSONHandler
+      parameters:
+      - description: Metric params
+        in: body
+        name: metric
+        required: true
+        schema:
+          $ref: '#/definitions/models.Metrics'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Metric data
+          schema:
+            $ref: '#/definitions/models.Metrics'
+        "400":
+          description: Metric type incorrect
+          schema:
+            type: string
+        "404":
+          description: Not found
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Get metric value by specified params
+      tags:
+      - Read
+  /value/{type}/{name}:
+    get:
+      consumes:
+      - text/plain
+      operationId: ValueHandler
+      parameters:
+      - default: counter
+        description: Metric type
+        enum:
+        - counter
+        - gauge
+        in: path
+        name: type
+        required: true
+        type: string
+      - description: Metric name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Metric value
+          schema:
+            type: string
+        "400":
+          description: Metric type incorrect
+          schema:
+            type: string
+        "404":
+          description: Not found
+          schema:
+            type: string
+        "500":
+          description: Internal error
+          schema:
+            type: string
+      summary: Get metric value by type and name
+      tags:
+      - Read
+swagger: "2.0"

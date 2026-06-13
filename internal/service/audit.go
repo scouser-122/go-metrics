@@ -15,19 +15,19 @@ import (
 	models "github.com/scouser-122/go-metrics/internal/model"
 )
 
-// AuditService service to log metrics events
+// AuditService service to log metrics events.
 type AuditService struct {
 	serverConfig *config.ServerConfig
 }
 
-// NewAuditService creates AuditService instance
+// NewAuditService creates AuditService instance.
 func NewAuditService(serverConfig *config.ServerConfig) AuditService {
 	return AuditService{
 		serverConfig: serverConfig,
 	}
 }
 
-// SubscribeToMetricEvents subscribes to metric receieve events, in case of error - just log
+// SubscribeToMetricEvents subscribes to metric receieve events, in case of error - just log.
 func (service *AuditService) SubscribeToMetricEvents(eventBroker pubsub.Broker, ctx context.Context) {
 	if service.serverConfig.AuditFile != "" {
 		handler := pubsub.NewHandler(func(ctx context.Context, topic pubsub.Topic, event models.MetricEvent) error {
@@ -73,7 +73,7 @@ func (service *AuditService) SubscribeToMetricEvents(eventBroker pubsub.Broker, 
 	}
 }
 
-// LogMetricEventToFile writes audit event to local file
+// LogMetricEventToFile writes audit event to local file.
 func (service *AuditService) LogMetricEventToFile(event models.MetricEvent) error {
 	file, err := os.OpenFile(service.serverConfig.AuditFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
@@ -88,7 +88,7 @@ func (service *AuditService) LogMetricEventToFile(event models.MetricEvent) erro
 	return nil
 }
 
-// LogMetricEventToRemoteService sends audit event to remote service
+// LogMetricEventToRemoteService sends audit event to remote service.
 func (service *AuditService) LogMetricEventToRemoteService(event models.MetricEvent) error {
 	var client = resty.New()
 	buf := new(bytes.Buffer)

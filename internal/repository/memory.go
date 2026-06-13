@@ -8,10 +8,12 @@ import (
 	models "github.com/scouser-122/go-metrics/internal/model"
 )
 
+// MemStorage provides an in-memory implementation of metrics storage.
 type MemStorage struct {
 	Metrics []models.Metrics
 }
 
+// UpdateOrCreateCounter updates an existing counter or creates a new one.
 func (memStorage *MemStorage) UpdateOrCreateCounter(ctx context.Context, name string, value int64) (*models.Metrics, error) {
 	index := slices.IndexFunc(memStorage.Metrics, func(m models.Metrics) bool {
 		return m.MType == models.Counter && m.ID == name
@@ -31,6 +33,7 @@ func (memStorage *MemStorage) UpdateOrCreateCounter(ctx context.Context, name st
 	}
 }
 
+// UpdateOrCreateGauge updates an existing gauge or creates a new one.
 func (memStorage *MemStorage) UpdateOrCreateGauge(ctx context.Context, name string, value float64) (*models.Metrics, error) {
 	index := slices.IndexFunc(memStorage.Metrics, func(m models.Metrics) bool {
 		return m.MType == models.Gauge && m.ID == name
@@ -50,6 +53,7 @@ func (memStorage *MemStorage) UpdateOrCreateGauge(ctx context.Context, name stri
 	}
 }
 
+// UpdateOrCreateMetric updates an existing metric or creates a new one.
 func (memStorage *MemStorage) UpdateOrCreateMetric(ctx context.Context, metric models.Metrics) (models.Metrics, error) {
 	index := slices.IndexFunc(memStorage.Metrics, func(m models.Metrics) bool {
 		return m.MType == metric.MType && m.ID == metric.ID
@@ -79,6 +83,7 @@ func (memStorage *MemStorage) UpdateOrCreateMetric(ctx context.Context, metric m
 	return metric, nil
 }
 
+// UpdateOrCreateMetrics updates an existing metrics or creates new metrics.
 func (memStorage *MemStorage) UpdateOrCreateMetrics(ctx context.Context, metrics []models.Metrics) (int64, error) {
 	count := int64(0)
 	for _, m := range metrics {
@@ -90,10 +95,12 @@ func (memStorage *MemStorage) UpdateOrCreateMetrics(ctx context.Context, metrics
 	return count, nil
 }
 
+// GetAllMetrics returns all stored metrics.
 func (memStorage *MemStorage) GetAllMetrics(ctx context.Context) []models.Metrics {
 	return memStorage.Metrics
 }
 
+// SaveMetrics store passed metrics.
 func (memStorage *MemStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) error {
 	for _, metric := range metrics {
 		index := slices.IndexFunc(memStorage.Metrics, func(m models.Metrics) bool {
@@ -123,6 +130,7 @@ func (memStorage *MemStorage) SaveMetrics(ctx context.Context, metrics []models.
 	return nil
 }
 
+// GetCounter returns counter by name if exists. If not - returns error.
 func (memStorage *MemStorage) GetCounter(ctx context.Context, name string) (int64, error) {
 	index := slices.IndexFunc(memStorage.Metrics, func(m models.Metrics) bool {
 		return m.MType == models.Counter && m.ID == name
@@ -134,6 +142,7 @@ func (memStorage *MemStorage) GetCounter(ctx context.Context, name string) (int6
 	}
 }
 
+// GetGauge returns gauge by name if exists. If not - returns error.
 func (memStorage *MemStorage) GetGauge(ctx context.Context, name string) (float64, error) {
 	index := slices.IndexFunc(memStorage.Metrics, func(m models.Metrics) bool {
 		return m.MType == models.Gauge && m.ID == name
@@ -145,6 +154,7 @@ func (memStorage *MemStorage) GetGauge(ctx context.Context, name string) (float6
 	}
 }
 
+// GetMetricWithValue returns metric by specified parameters if exists. If not - returns error.
 func (memStorage *MemStorage) GetMetricWithValue(ctx context.Context, metric *models.Metrics) (*models.Metrics, error) {
 	index := slices.IndexFunc(memStorage.Metrics, func(m models.Metrics) bool {
 		return m.MType == metric.MType && m.ID == metric.ID

@@ -10,11 +10,13 @@ import (
 	models "github.com/scouser-122/go-metrics/internal/model"
 )
 
+// FileSystemStorage provides metrics storage with filesystem persistence.
 type FileSystemStorage struct {
 	MemoryStorage MemStorage
 	config        *config.ServerConfig
 }
 
+// CreateFileSystemStorage creates a new FileSystemStorage instance with the provided configuration.
 func CreateFileSystemStorage(config *config.ServerConfig) *FileSystemStorage {
 	memStorage := MemStorage{}
 	return &FileSystemStorage{

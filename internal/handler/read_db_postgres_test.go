@@ -107,7 +107,6 @@ func TestListHandlerDBPostgres(t *testing.T) {
 	}
 }
 
-// Benchmark for ListHandler func
 func BenchmarkListHandlerDBPostgres(b *testing.B) {
 	// prepare config
 	serverConfig := config.DefaultServerConfig()

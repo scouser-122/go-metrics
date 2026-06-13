@@ -2,19 +2,20 @@ package models
 
 import "github.com/botchris/go-pubsub"
 
+// MetricEvent is a marker interface for metric-related events.
 type MetricEvent interface{}
 
-// MetricsReceivedEvent событие получения метрик
+// MetricsReceivedEvent metric received event.
 type MetricsReceivedEvent struct {
 	MetricEvent `json:"-"`
 
-	// TS unix timestamp события
+	// TS event's unix timestamp.
 	TS int64 `json:"ts"`
 
-	// Metrics наименование полученных метрик
+	// Metrics names of received metrics.
 	Metrics []string `json:"metrics"`
 
-	// IPAddress IP адрес входящего запроса
+	// IPAddress incoming request IP address.
 	IPAddress string `json:"ip_address"`
 }
 

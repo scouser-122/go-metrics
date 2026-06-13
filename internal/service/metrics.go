@@ -14,6 +14,7 @@ import (
 	"github.com/scouser-122/go-metrics/internal/repository/db"
 )
 
+// MetricsService manages metrics storage, retrieval, and persistence operations.
 type MetricsService struct {
 	Storage      repository.MetricsStorage
 	serverConfig *config.ServerConfig
@@ -61,6 +62,7 @@ func (service *MetricsService) createStorage(db *db.PostgresDatabase) {
 	service.Storage = &repository.MemStorage{}
 }
 
+// SaveMetric saves a metric with the specified type, name, and value.
 func (service *MetricsService) SaveMetric(ctx context.Context, metricType string, name string, value string) (string, error) {
 	var result string
 	if metricType != models.Counter && metricType != models.Gauge {
@@ -104,6 +106,7 @@ func (service *MetricsService) SaveMetric(ctx context.Context, metricType string
 	return result, nil
 }
 
+// SaveMetricModel saves a metric using the Metrics model structure.
 func (service *MetricsService) SaveMetricModel(ctx context.Context, metric *models.Metrics) (models.Metrics, error) {
 	var result models.Metrics
 	switch metric.MType {
@@ -129,6 +132,7 @@ func (service *MetricsService) SaveMetricModel(ctx context.Context, metric *mode
 	return result, err
 }
 
+// SaveMetricsModel saves multiple metrics and returns the count of successfully saved metrics.
 func (service *MetricsService) SaveMetricsModel(ctx context.Context, metrics []models.Metrics) (int64, error) {
 	var result int64
 	for _, m := range metrics {
@@ -157,10 +161,12 @@ func (service *MetricsService) SaveMetricsModel(ctx context.Context, metrics []m
 	return result, err
 }
 
+// GetAllMetrics retrieves all stored metrics.
 func (service *MetricsService) GetAllMetrics(ctx context.Context) []models.Metrics {
 	return service.Storage.GetAllMetrics(ctx)
 }
 
+// GetValue retrieves the value of a metric by type and name.
 func (service *MetricsService) GetValue(ctx context.Context, metricType string, name string) (string, error) {
 	var result string
 	if metricType != models.Counter && metricType != models.Gauge {
@@ -188,6 +194,7 @@ func (service *MetricsService) GetValue(ctx context.Context, metricType string, 
 	return result, nil
 }
 
+// ReadMetric retrieves a metric with its value based on the provided metric template.
 func (service *MetricsService) ReadMetric(ctx context.Context, metric *models.Metrics) (*models.Metrics, error) {
 	if metric.MType != models.Counter && metric.MType != models.Gauge {
 		return nil, models.IncorrectMetricType{

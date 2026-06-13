@@ -16,14 +16,28 @@ const (
 // Delta и Value объявлены через указатели,
 // что бы отличать значение "0", от не заданного значения
 // и соответственно не кодировать в структуру.
+
+// Metrics represents a metric with an ID, type, and value.
+// Delta and Value are pointers to distinguish between zero values and unset values.
+// swagger:model
 type Metrics struct {
-	ID    string   `json:"id"`
-	MType string   `json:"type"`
-	Delta *int64   `json:"delta,omitempty"`
+	// The unique identifier for this metric.
+	ID string `json:"id" binding:"required"`
+
+	// Metric type.
+	MType string `json:"type" enums:"counter,gauge" binding:"required"`
+
+	// Metric delta in case it has counter type.
+	Delta *int64 `json:"delta,omitempty"`
+
+	// Metric value in case it has counter gauge.
 	Value *float64 `json:"value,omitempty"`
-	Hash  string   `json:"hash,omitempty"`
+
+	// Internal data (not exposed in API)
+	Hash string `json:"hash,omitempty" swaggerignore:"true"`
 }
 
+// GetValueAsString returns the metric value as a string based on its type.
 func (m *Metrics) GetValueAsString() (string, error) {
 	switch m.MType {
 	case Counter:
@@ -40,6 +54,7 @@ func (m *Metrics) GetValueAsString() (string, error) {
 	return "", errors.New("metric type incorrect")
 }
 
+// String returns the metric as a JSON string.
 func (m Metrics) String() string {
 	jsonData, err := json.Marshal(m)
 	if err != nil {
