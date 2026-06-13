@@ -19,6 +19,7 @@ func parseFlags(config *config.ServerConfig) {
 	flag.StringVar(&config.HMACKey, "k", "", "HMAC key to calculate hash of request")
 	flag.StringVar(&config.AuditFile, "audit-file", "", "path to file where audit events should be written")
 	flag.StringVar(&config.AuditURL, "audit-url", "", "URL of service where audit events should be sent to")
+	flag.BoolVar(&config.ProfileEnabled, "profile-enabled", false, "flag to start profiing server on port 6060")
 	flag.Parse()
 }
 

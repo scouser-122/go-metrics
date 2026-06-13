@@ -157,7 +157,7 @@ func TestValueHandler(t *testing.T) {
 	}
 }
 
-func ptr[T any](v T) *T {
+func Ptr[T any](v T) *T {
 	return &v
 }
 
@@ -179,7 +179,7 @@ var valueJSONTests = []struct {
 			{
 				ID:    "Alloc",
 				MType: models.Gauge,
-				Value: ptr(float64(123.456)),
+				Value: Ptr(float64(123.456)),
 			},
 		},
 		want: want{
@@ -200,7 +200,7 @@ var valueJSONTests = []struct {
 			{
 				ID:    "Alloc",
 				MType: models.Counter,
-				Delta: ptr(int64(10)),
+				Delta: Ptr(int64(10)),
 			},
 		},
 		want: want{

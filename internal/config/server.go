@@ -15,6 +15,9 @@ type ServerConfig struct {
 
 	// AuditURL URL of service where audit events should be sent to
 	AuditURL string `env:"AUDIT_URL"`
+
+	// ProfileEnabled flag to start profiing server on port 6060
+	ProfileEnabled bool `env:"PROFILE_ENABLED"`
 }
 
 func DefaultServerConfig() ServerConfig {
@@ -29,5 +32,6 @@ func DefaultServerConfig() ServerConfig {
 		HMACKey:          "",
 		AuditFile:        "",
 		AuditURL:         "",
+		ProfileEnabled:   false,
 	}
 }

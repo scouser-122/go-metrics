@@ -24,16 +24,10 @@ type ReadHandler struct {
 	tmpl     *template.Template
 }
 
-type MetricItem struct {
-	ID    string
-	Type  string
-	Value string
-}
-
 type PageData struct {
 	Title       string
 	Subtitle    string
-	Metrics     []MetricItem
+	Metrics     []models.Metrics
 	LastUpdated string
 }
 
@@ -93,8 +87,8 @@ func (h *ReadHandler) CreateTemplate() {
         {{range .Metrics}}
         <div class="item">
             <div class="item-header">
-                <strong>{{.ID}} [{{.Type}}]</strong>
-                <span class="meta">{{.Value}}</span>
+                <strong>{{.ID}} [{{.MType}}]</strong>
+                <span class="meta">{{.GetValueAsString}}</span>
             </div>
         </div>
         {{end}}
@@ -145,24 +139,13 @@ func (h *ReadHandler) PingDB(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h *ReadHandler) processListRequest(res http.ResponseWriter, req *http.Request) {
+	metrics := h.Service.Storage.GetAllMetrics(req.Context())
 	data := PageData{
 		Title:       "Metrics",
 		Subtitle:    "For each metric specified it's type and current value",
-		Metrics:     []MetricItem{},
 		LastUpdated: time.Now().Format("2006-01-02 15:04 MST"),
 	}
-	for _, m := range h.Service.Storage.GetAllMetrics(req.Context()) {
-		value, err := m.GetValueAsString()
-		if err != nil {
-			logger.Sugar.Errorf("can't get value for metric %s, type %s, err: %q", m.ID, m.MType, err)
-			continue
-		}
-		data.Metrics = append(data.Metrics, MetricItem{
-			ID:    m.ID,
-			Type:  m.MType,
-			Value: value,
-		})
-	}
+	data.Metrics = metrics
 	var sb strings.Builder
 	if err := h.tmpl.Execute(&sb, data); err != nil {
 		http.Error(res, "Template rendering error", http.StatusInternalServerError)

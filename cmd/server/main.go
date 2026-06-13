@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"net/http"
 
 	"github.com/botchris/go-pubsub/provider/memory"
@@ -10,6 +11,8 @@ import (
 	"github.com/scouser-122/go-metrics/internal/logger"
 	"github.com/scouser-122/go-metrics/internal/repository/db"
 	"github.com/scouser-122/go-metrics/internal/service"
+
+	_ "net/http/pprof" // подключаем пакет pprof
 )
 
 func main() {
@@ -41,6 +44,12 @@ func main() {
 	handlers := handler.InitializeHandlers(metricsService, &cryptoService, &database)
 
 	r := handler.CreateChiRouter(&handlers)
+
+	if serverConfig.ProfileEnabled == true {
+		go func() {
+			log.Println(http.ListenAndServe("localhost:6060", nil))
+		}()
+	}
 
 	logger.Sugar.Infof("starting server on http://%s", serverConfig.RunAddr)
 	logger.Sugar.Fatal(http.ListenAndServe(serverConfig.RunAddr, r))

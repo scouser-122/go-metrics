@@ -3,14 +3,18 @@ package handler
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/botchris/go-pubsub/provider/memory"
 	"github.com/scouser-122/go-metrics/internal/config"
+	models "github.com/scouser-122/go-metrics/internal/model"
 	"github.com/scouser-122/go-metrics/internal/repository/db"
 	"github.com/scouser-122/go-metrics/internal/service"
 	"github.com/stretchr/testify/assert"
@@ -341,5 +345,63 @@ func TestUpdateJSONHandler(t *testing.T) {
 			}
 			res.Body.Close()
 		})
+	}
+}
+
+// Benchmark for UpdateJSONArrayHandler func
+func BenchmarkUpdateJSONArrayHandler(b *testing.B) {
+	// prepare handler
+	serverConfig := config.DefaultServerConfig()
+	serverConfig.HMACKey = "secret_key"
+	cryptoService := service.CryptoService{
+		ServerConfig: &serverConfig,
+	}
+
+	eventBroker := memory.NewBroker()
+	brokerContext, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	auditService := service.NewAuditService(&serverConfig)
+	auditService.SubscribeToMetricEvents(eventBroker, brokerContext)
+
+	metricsService := service.NewMetricsService(&serverConfig, &db.PostgresDatabase{}, eventBroker)
+	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
+
+	handlerIndex := slices.IndexFunc(handlers, func(h Handler) bool {
+		return h.Method == http.MethodPost && h.URLPathPattern == "/updates"
+	})
+	handler := handlers[handlerIndex]
+
+	// prepare request data
+	metricsSize := 500
+	requestData := make([]models.Metrics, 0, metricsSize)
+	for i := 0; i < metricsSize/2; i += 2 {
+		requestData = append(requestData, models.Metrics{
+			ID:    fmt.Sprintf("TestCounter_%d", i),
+			MType: models.Counter,
+			Delta: Ptr(int64(i * 10)),
+		})
+		requestData = append(requestData, models.Metrics{
+			ID:    fmt.Sprintf("TestGauge_%d", i+1),
+			MType: models.Counter,
+			Value: Ptr(float64((i + 1) * 10)),
+		})
+	}
+
+	body, _ := json.Marshal(requestData)
+
+	// reset benchmark timer
+	b.ResetTimer()
+
+	// run benchmark b.N times
+	for i := 0; i < b.N; i++ {
+		// create request
+		req := httptest.NewRequest(http.MethodPost, "/updates", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+
+		// create response recorder
+		rr := httptest.NewRecorder()
+
+		// call handler
+		handler.HandlerFn(rr, req)
 	}
 }

@@ -167,6 +167,7 @@ func (storage *PostgresDBStorage) UpdateOrCreateMetric(ctx context.Context, metr
 		if err != nil {
 			return metric, models.MetricSaveError{Err: err}
 		}
+		*metric.Delta += *dbMetric.Delta
 	case models.Gauge:
 		_, err = storage.Database.Exec(
 			ctx,
