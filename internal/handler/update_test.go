@@ -181,6 +181,43 @@ func TestUpdateHandlerMemStorage(t *testing.T) {
 	}
 }
 
+func ExampleUpdateHandler_UpdateHandler() {
+	// prepare handler
+	serverConfig := config.DefaultServerConfig()
+	serverConfig.HMACKey = "secret_key"
+	cryptoService := service.CryptoService{
+		ServerConfig: &serverConfig,
+	}
+
+	eventBroker := memory.NewBroker()
+	brokerContext, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	auditService := service.NewAuditService(&serverConfig)
+	auditService.SubscribeToMetricEvents(eventBroker, brokerContext)
+
+	metricsService := service.NewMetricsService(&serverConfig, &db.PostgresDatabase{}, eventBroker)
+
+	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
+	r := CreateChiRouter(&handlers)
+
+	// call handler
+	request := httptest.NewRequest(http.MethodPost, "/update/counter/TestCounter/10", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, request)
+	res := w.Result()
+
+	fmt.Println(res.StatusCode)
+	bodyBytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(bodyBytes))
+
+	// Output:
+	// 200
+	// 10
+}
+
 var updateJSONTests = []struct {
 	name    string
 	request request
@@ -348,6 +385,47 @@ func TestUpdateJSONHandler(t *testing.T) {
 	}
 }
 
+func ExampleUpdateHandler_UpdateJSONHandler() {
+	// prepare handler
+	serverConfig := config.DefaultServerConfig()
+	serverConfig.HMACKey = "secret_key"
+	cryptoService := service.CryptoService{
+		ServerConfig: &serverConfig,
+	}
+
+	eventBroker := memory.NewBroker()
+	brokerContext, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	auditService := service.NewAuditService(&serverConfig)
+	auditService.SubscribeToMetricEvents(eventBroker, brokerContext)
+
+	metricsService := service.NewMetricsService(&serverConfig, &db.PostgresDatabase{}, eventBroker)
+	metricsService.SaveMetricsModel(context.Background(), []models.Metrics{
+		{ID: "TestCounter", MType: models.Counter, Delta: Ptr(int64(50.0))},
+	})
+
+	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
+	r := CreateChiRouter(&handlers)
+
+	// call handler
+	body := `{"id":"TestCounter","type":"counter","delta":100}`
+	request := httptest.NewRequest(http.MethodPost, "/update", bytes.NewReader([]byte(body)))
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, request)
+	res := w.Result()
+
+	fmt.Println(res.StatusCode)
+	bodyBytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(bodyBytes))
+
+	// Output:
+	// 200
+	// {"id":"TestCounter","type":"counter","delta":150}
+}
+
 // Benchmark for UpdateJSONArrayHandler func
 func BenchmarkUpdateJSONArrayHandler(b *testing.B) {
 	// prepare handler
@@ -404,4 +482,45 @@ func BenchmarkUpdateJSONArrayHandler(b *testing.B) {
 		// call handler
 		handler.HandlerFn(rr, req)
 	}
+}
+
+func ExampleUpdateHandler_UpdateJSONArrayHandler() {
+	// prepare handler
+	serverConfig := config.DefaultServerConfig()
+	serverConfig.HMACKey = "secret_key"
+	cryptoService := service.CryptoService{
+		ServerConfig: &serverConfig,
+	}
+
+	eventBroker := memory.NewBroker()
+	brokerContext, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	auditService := service.NewAuditService(&serverConfig)
+	auditService.SubscribeToMetricEvents(eventBroker, brokerContext)
+
+	metricsService := service.NewMetricsService(&serverConfig, &db.PostgresDatabase{}, eventBroker)
+	metricsService.SaveMetricsModel(context.Background(), []models.Metrics{
+		{ID: "TestCounter", MType: models.Counter, Delta: Ptr(int64(50.0))},
+	})
+
+	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
+	r := CreateChiRouter(&handlers)
+
+	// call handler
+	body := `[{"id":"TestCounter","type":"counter","delta":100},{"id":"TestGauge","type":"gauge","value":123.50}]`
+	request := httptest.NewRequest(http.MethodPost, "/updates", bytes.NewReader([]byte(body)))
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, request)
+	res := w.Result()
+
+	fmt.Println(res.StatusCode)
+	bodyBytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(bodyBytes))
+
+	// Output:
+	// 200
+	// {"status":"ok","message":"successfully saved 2 metrics"}
 }
