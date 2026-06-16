@@ -185,7 +185,13 @@ func (h *ReadHandler) PingDB(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h *ReadHandler) processListRequest(res http.ResponseWriter, req *http.Request) {
-	metrics := h.Service.Storage.GetAllMetrics(req.Context())
+	metrics, err := h.Service.GetAllMetrics(req.Context())
+	if err != nil {
+		if errors.As(err, &models.ErrGetAllMetrics) {
+			res.WriteHeader(http.StatusInternalServerError)
+		}
+		return
+	}
 	data := PageData{
 		Title:       "Metrics",
 		Subtitle:    "For each metric specified it's type and current value",

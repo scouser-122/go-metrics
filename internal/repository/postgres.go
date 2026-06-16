@@ -250,7 +250,7 @@ func (storage *PostgresDBStorage) UpdateOrCreateMetrics(ctx context.Context, met
 }
 
 // GetAllMetrics returns all stored metrics.
-func (storage *PostgresDBStorage) GetAllMetrics(ctx context.Context) []models.Metrics {
+func (storage *PostgresDBStorage) GetAllMetrics(ctx context.Context) ([]models.Metrics, error) {
 	page := 0
 	limit := 10
 	result := []models.Metrics{}
@@ -264,8 +264,7 @@ func (storage *PostgresDBStorage) GetAllMetrics(ctx context.Context) []models.Me
 		)
 		if err != nil {
 			logger.Log.Sugar().Error(err)
-			rows.Close()
-			return []models.Metrics{}
+			return []models.Metrics{}, models.GetAllMetricsError{Err: err}
 		}
 		count := 0
 		for rows.Next() {
@@ -274,7 +273,7 @@ func (storage *PostgresDBStorage) GetAllMetrics(ctx context.Context) []models.Me
 			if err != nil {
 				logger.Log.Sugar().Error(err)
 				rows.Close()
-				return []models.Metrics{}
+				return []models.Metrics{}, models.GetAllMetricsError{Err: err}
 			}
 			result = append(result, metric)
 			count++
@@ -283,7 +282,7 @@ func (storage *PostgresDBStorage) GetAllMetrics(ctx context.Context) []models.Me
 		if err != nil {
 			logger.Log.Sugar().Error(err)
 			rows.Close()
-			return []models.Metrics{}
+			return []models.Metrics{}, models.GetAllMetricsError{Err: err}
 		}
 		rows.Close()
 		if count == 0 {
@@ -292,7 +291,7 @@ func (storage *PostgresDBStorage) GetAllMetrics(ctx context.Context) []models.Me
 		page++
 	}
 
-	return result
+	return result, nil
 }
 
 // SaveMetrics store passed metrics.

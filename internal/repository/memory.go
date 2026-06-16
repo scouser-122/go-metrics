@@ -96,8 +96,8 @@ func (memStorage *MemStorage) UpdateOrCreateMetrics(ctx context.Context, metrics
 }
 
 // GetAllMetrics returns all stored metrics.
-func (memStorage *MemStorage) GetAllMetrics(ctx context.Context) []models.Metrics {
-	return memStorage.Metrics
+func (memStorage *MemStorage) GetAllMetrics(ctx context.Context) ([]models.Metrics, error) {
+	return memStorage.Metrics, nil
 }
 
 // SaveMetrics store passed metrics.

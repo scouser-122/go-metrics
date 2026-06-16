@@ -21,7 +21,7 @@ type MetricsStorage interface {
 	UpdateOrCreateMetrics(context.Context, []models.Metrics) (int64, error)
 
 	// GetAllMetrics returns all stored metrics.
-	GetAllMetrics(context.Context) []models.Metrics
+	GetAllMetrics(context.Context) ([]models.Metrics, error)
 
 	// SaveMetrics store passed metrics.
 	SaveMetrics(context.Context, []models.Metrics) error

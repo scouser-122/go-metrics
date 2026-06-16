@@ -162,7 +162,7 @@ func (service *MetricsService) SaveMetricsModel(ctx context.Context, metrics []m
 }
 
 // GetAllMetrics retrieves all stored metrics.
-func (service *MetricsService) GetAllMetrics(ctx context.Context) []models.Metrics {
+func (service *MetricsService) GetAllMetrics(ctx context.Context) ([]models.Metrics, error) {
 	return service.Storage.GetAllMetrics(ctx)
 }
 
@@ -209,8 +209,10 @@ func (service *MetricsService) restoreMetricsIfRequired() {
 	if !service.serverConfig.Restore {
 		return
 	}
-	metrics := service.fsStorage.GetAllMetrics(context.Background())
-	service.Storage.SaveMetrics(context.Background(), metrics)
+	metrics, err := service.fsStorage.GetAllMetrics(context.Background())
+	if err == nil {
+		service.Storage.SaveMetrics(context.Background(), metrics)
+	}
 }
 
 func (service *MetricsService) storeMetricsInFsIfRequired() {
@@ -227,7 +229,10 @@ func (service *MetricsService) storeMetricsInFsWorker() {
 
 	for range ticker.C {
 		ctx := context.Background()
-		service.fsStorage.SaveMetrics(ctx, service.Storage.GetAllMetrics(ctx))
+		metrics, err := service.Storage.GetAllMetrics(ctx)
+		if err == nil {
+			service.fsStorage.SaveMetrics(ctx, metrics)
+		}
 	}
 }
 

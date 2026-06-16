@@ -69,11 +69,13 @@ func (storage *FileSystemStorage) UpdateOrCreateMetrics(ctx context.Context, met
 	return count, nil
 }
 
-func (storage *FileSystemStorage) GetAllMetrics(ctx context.Context) []models.Metrics {
+func (storage *FileSystemStorage) GetAllMetrics(ctx context.Context) ([]models.Metrics, error) {
 	if len(storage.MemoryStorage.Metrics) == 0 {
-		storage.loadMetricsFromFS()
+		if err := storage.loadMetricsFromFS(); err != nil {
+			return nil, err
+		}
 	}
-	return storage.MemoryStorage.Metrics
+	return storage.MemoryStorage.Metrics, nil
 }
 
 func (storage *FileSystemStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) error {
@@ -124,19 +126,20 @@ func (storage *FileSystemStorage) saveMetricsInFS() error {
 	return nil
 }
 
-func (storage *FileSystemStorage) loadMetricsFromFS() {
+func (storage *FileSystemStorage) loadMetricsFromFS() error {
 	result := []models.Metrics{}
 	data, err := os.ReadFile(storage.config.StorePath)
 	if err != nil {
 		logger.Sugar.Errorf("couldn't load metrics from FS: %q", err)
-		return
+		return models.GetAllMetricsError{Err: err}
 	}
 	if err := json.Unmarshal(data, &result); err != nil {
 		logger.Sugar.Errorf("couldn't parse metrics loaded from FS: %q", err)
-		return
+		return models.GetAllMetricsError{Err: err}
 	}
 	if len(result) > 0 {
 		logger.Sugar.Infof("succesfully loaded %d metrics from file %s", len(result), storage.config.StorePath)
 		storage.MemoryStorage.Metrics = result
 	}
+	return nil
 }

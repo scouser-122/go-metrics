@@ -52,11 +52,23 @@ func (e MetricGetError) Error() string {
 	return fmt.Sprintf("%s %v", e.Message, e.Err)
 }
 
+// GetAllMetricsError represents an error that occurred while retrieving all metrics.
+type GetAllMetricsError struct {
+	Message string
+	Err     error
+}
+
+// Error implements the error interface.
+func (e GetAllMetricsError) Error() string {
+	return fmt.Sprintf("%s %v", e.Message, e.Err)
+}
+
 var (
 	ErrIncorrectType   = IncorrectMetricType{}
 	ErrIncorrectFormat = MetricFormatError{}
 	ErrSaveMetric      = MetricSaveError{}
 	ErrGetMetric       = MetricGetError{}
+	ErrGetAllMetrics   = GetAllMetricsError{}
 )
 
 // ErrorClassification categorizes errors as retryable or non-retryable.

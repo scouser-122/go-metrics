@@ -71,6 +71,26 @@ var listPostgresDBTests = []struct {
 			contentType: "text/html; charset=utf-8",
 		},
 	},
+	{
+		name: "negative test list metrics",
+		request: request{
+			method: http.MethodGet,
+			path:   "/",
+		},
+		mockDB: db.MockPostgresDBTestData{
+			MockDBCalls: func(tt db.MockPostgresDBTestData) {
+				mock := tt.PgxPoolIface
+				mock.ExpectPing()
+				mock.ExpectQuery("SELECT id, type, delta, value FROM metrics").
+					WithArgs(pgxmock.AnyArg(), pgxmock.AnyArg()).
+					WillReturnError(fmt.Errorf("DB query error"))
+			},
+		},
+		want: want{
+			code:        http.StatusInternalServerError,
+			contentType: "text/html; charset=utf-8",
+		},
+	},
 }
 
 func TestListHandlerDBPostgres(t *testing.T) {
