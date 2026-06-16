@@ -79,13 +79,14 @@ func logMetricEventsToFile(events chan models.MetricsReceivedEvent, auditFilePat
 			logger.Sugar.Errorf("metrics event save to file error: %w", err)
 			continue
 		}
-		defer file.Close()
 		encoder := json.NewEncoder(file)
 		if err := encoder.Encode(event); err != nil {
 			logger.Sugar.Errorf("metrics event save to file error: %w", err)
+			file.Close()
 			continue
 		}
 		timestamp := time.UnixMilli(event.TS).Format("2006-01-02 15:04:05.000")
+		file.Close()
 		logger.Sugar.Infof("metrics event with TS %s successfully saved in file", timestamp)
 	}
 }
