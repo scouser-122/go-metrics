@@ -2,14 +2,19 @@ package handler
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/botchris/go-pubsub/provider/memory"
 	"github.com/scouser-122/go-metrics/internal/config"
-	"github.com/scouser-122/go-metrics/internal/repository"
+	models "github.com/scouser-122/go-metrics/internal/model"
 	"github.com/scouser-122/go-metrics/internal/repository/db"
 	"github.com/scouser-122/go-metrics/internal/service"
 	"github.com/stretchr/testify/assert"
@@ -136,16 +141,20 @@ var updateTestsMemStorage = []struct {
 func TestUpdateHandlerMemStorage(t *testing.T) {
 	for _, test := range updateTestsMemStorage {
 		t.Run(test.name, func(t *testing.T) {
-			config := config.DefaultServerConfig()
-			memStorage := repository.MemStorage{}
-			metricsService := service.MetricsService{
-				Storage: &memStorage,
-			}
+			serverConfig := config.DefaultServerConfig()
 			cryptoService := service.CryptoService{
-				ServerConfig: &config,
+				ServerConfig: &serverConfig,
 			}
-			metricsService.Initialize(&config, &db.PostgresDatabase{})
-			handlers := InitializeHandlers(&metricsService, &cryptoService, nil)
+
+			eventBroker := memory.NewBroker()
+			brokerContext, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			auditService := service.NewAuditService(&serverConfig)
+			auditService.SubscribeToMetricEvents(eventBroker, brokerContext)
+
+			metricsService := service.NewMetricsService(&serverConfig, &db.PostgresDatabase{}, eventBroker)
+
+			handlers := InitializeHandlers(metricsService, &cryptoService, nil)
 
 			r := CreateChiRouter(&handlers)
 
@@ -170,6 +179,44 @@ func TestUpdateHandlerMemStorage(t *testing.T) {
 			res.Body.Close()
 		})
 	}
+}
+
+func ExampleUpdateHandler_UpdateHandler() {
+	// prepare handler
+	serverConfig := config.DefaultServerConfig()
+	serverConfig.HMACKey = "secret_key"
+	cryptoService := service.CryptoService{
+		ServerConfig: &serverConfig,
+	}
+
+	eventBroker := memory.NewBroker()
+	brokerContext, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	auditService := service.NewAuditService(&serverConfig)
+	auditService.SubscribeToMetricEvents(eventBroker, brokerContext)
+
+	metricsService := service.NewMetricsService(&serverConfig, &db.PostgresDatabase{}, eventBroker)
+
+	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
+	r := CreateChiRouter(&handlers)
+
+	// call handler
+	request := httptest.NewRequest(http.MethodPost, "/update/counter/TestCounter/10", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, request)
+	res := w.Result()
+
+	fmt.Println(res.StatusCode)
+	bodyBytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(bodyBytes))
+	res.Body.Close()
+
+	// Output:
+	// 200
+	// 10
 }
 
 var updateJSONTests = []struct {
@@ -288,17 +335,20 @@ var updateJSONTests = []struct {
 func TestUpdateJSONHandler(t *testing.T) {
 	for _, test := range updateJSONTests {
 		t.Run(test.name, func(t *testing.T) {
-			config := config.DefaultServerConfig()
-			config.HMACKey = "secret_key"
-			memStorage := repository.MemStorage{}
+			serverConfig := config.DefaultServerConfig()
+			serverConfig.HMACKey = "secret_key"
 			cryptoService := service.CryptoService{
-				ServerConfig: &config,
+				ServerConfig: &serverConfig,
 			}
-			metricsService := service.MetricsService{
-				Storage: &memStorage,
-			}
-			metricsService.Initialize(&config, &db.PostgresDatabase{})
-			handlers := InitializeHandlers(&metricsService, &cryptoService, nil)
+
+			eventBroker := memory.NewBroker()
+			brokerContext, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			auditService := service.NewAuditService(&serverConfig)
+			auditService.SubscribeToMetricEvents(eventBroker, brokerContext)
+
+			metricsService := service.NewMetricsService(&serverConfig, &db.PostgresDatabase{}, eventBroker)
+			handlers := InitializeHandlers(metricsService, &cryptoService, nil)
 
 			r := CreateChiRouter(&handlers)
 
@@ -334,4 +384,146 @@ func TestUpdateJSONHandler(t *testing.T) {
 			res.Body.Close()
 		})
 	}
+}
+
+func ExampleUpdateHandler_UpdateJSONHandler() {
+	// prepare handler
+	serverConfig := config.DefaultServerConfig()
+	serverConfig.HMACKey = "secret_key"
+	cryptoService := service.CryptoService{
+		ServerConfig: &serverConfig,
+	}
+
+	eventBroker := memory.NewBroker()
+	brokerContext, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	auditService := service.NewAuditService(&serverConfig)
+	auditService.SubscribeToMetricEvents(eventBroker, brokerContext)
+
+	metricsService := service.NewMetricsService(&serverConfig, &db.PostgresDatabase{}, eventBroker)
+	metricsService.SaveMetricsModel(context.Background(), []models.Metrics{
+		{ID: "TestCounter", MType: models.Counter, Delta: Ptr(int64(50.0))},
+	})
+
+	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
+	r := CreateChiRouter(&handlers)
+
+	// call handler
+	body := `{"id":"TestCounter","type":"counter","delta":100}`
+	request := httptest.NewRequest(http.MethodPost, "/update", bytes.NewReader([]byte(body)))
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, request)
+	res := w.Result()
+
+	fmt.Println(res.StatusCode)
+	bodyBytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(bodyBytes))
+	res.Body.Close()
+
+	// Output:
+	// 200
+	// {"id":"TestCounter","type":"counter","delta":150}
+}
+
+// Benchmark for UpdateJSONArrayHandler func
+func BenchmarkUpdateJSONArrayHandler(b *testing.B) {
+	// prepare handler
+	serverConfig := config.DefaultServerConfig()
+	serverConfig.HMACKey = "secret_key"
+	cryptoService := service.CryptoService{
+		ServerConfig: &serverConfig,
+	}
+
+	eventBroker := memory.NewBroker()
+	brokerContext, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	auditService := service.NewAuditService(&serverConfig)
+	auditService.SubscribeToMetricEvents(eventBroker, brokerContext)
+
+	metricsService := service.NewMetricsService(&serverConfig, &db.PostgresDatabase{}, eventBroker)
+	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
+
+	handlerIndex := slices.IndexFunc(handlers, func(h Handler) bool {
+		return h.Method == http.MethodPost && h.URLPathPattern == "/updates"
+	})
+	handler := handlers[handlerIndex]
+
+	// prepare request data
+	metricsSize := 500
+	requestData := make([]models.Metrics, 0, metricsSize)
+	for i := 0; i < metricsSize/2; i += 2 {
+		requestData = append(requestData, models.Metrics{
+			ID:    fmt.Sprintf("TestCounter_%d", i),
+			MType: models.Counter,
+			Delta: Ptr(int64(i * 10)),
+		})
+		requestData = append(requestData, models.Metrics{
+			ID:    fmt.Sprintf("TestGauge_%d", i+1),
+			MType: models.Counter,
+			Value: Ptr(float64((i + 1) * 10)),
+		})
+	}
+
+	body, _ := json.Marshal(requestData)
+
+	// reset benchmark timer
+	b.ResetTimer()
+
+	// run benchmark b.N times
+	for i := 0; i < b.N; i++ {
+		// create request
+		req := httptest.NewRequest(http.MethodPost, "/updates", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+
+		// create response recorder
+		rr := httptest.NewRecorder()
+
+		// call handler
+		handler.HandlerFn(rr, req)
+	}
+}
+
+func ExampleUpdateHandler_UpdateJSONArrayHandler() {
+	// prepare handler
+	serverConfig := config.DefaultServerConfig()
+	serverConfig.HMACKey = "secret_key"
+	cryptoService := service.CryptoService{
+		ServerConfig: &serverConfig,
+	}
+
+	eventBroker := memory.NewBroker()
+	brokerContext, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	auditService := service.NewAuditService(&serverConfig)
+	auditService.SubscribeToMetricEvents(eventBroker, brokerContext)
+
+	metricsService := service.NewMetricsService(&serverConfig, &db.PostgresDatabase{}, eventBroker)
+	metricsService.SaveMetricsModel(context.Background(), []models.Metrics{
+		{ID: "TestCounter", MType: models.Counter, Delta: Ptr(int64(50.0))},
+	})
+
+	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
+	r := CreateChiRouter(&handlers)
+
+	// call handler
+	body := `[{"id":"TestCounter","type":"counter","delta":100},{"id":"TestGauge","type":"gauge","value":123.50}]`
+	request := httptest.NewRequest(http.MethodPost, "/updates", bytes.NewReader([]byte(body)))
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, request)
+	res := w.Result()
+
+	fmt.Println(res.StatusCode)
+	bodyBytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(bodyBytes))
+	res.Body.Close()
+
+	// Output:
+	// 200
+	// {"status":"ok","message":"successfully saved 2 metrics"}
 }

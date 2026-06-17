@@ -2,8 +2,11 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"io"
+	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,6 +15,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// RequestLogger is an HTTP middleware that logs request and response details including
+// URI, method, status code, response size, and duration.
 func RequestLogger(h http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -49,7 +54,8 @@ func RequestLogger(h http.HandlerFunc) http.HandlerFunc {
 			r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		}
 
-		h(&lw, r)
+		ctx := context.WithValue(r.Context(), models.IPAddressContextKey, getClientIP(r))
+		h(&lw, r.WithContext(ctx))
 
 		duration := time.Since(start)
 
@@ -60,4 +66,23 @@ func RequestLogger(h http.HandlerFunc) http.HandlerFunc {
 			duration,
 		)
 	})
+}
+
+func getClientIP(r *http.Request) string {
+	xff := r.Header.Get("X-Forwarded-For")
+	if xff != "" {
+		ips := strings.Split(xff, ",")
+		clientIP := strings.TrimSpace(ips[0])
+		if clientIP != "" {
+			return clientIP
+		}
+	}
+
+	xri := r.Header.Get("X-Real-IP")
+	if xri != "" {
+		return strings.TrimSpace(xri)
+	}
+
+	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+	return ip
 }

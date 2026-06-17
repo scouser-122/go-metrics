@@ -15,17 +15,20 @@ import (
 	"github.com/shirou/gopsutil/v4/mem"
 )
 
+// MetricsCollector collects runtime and system metrics periodically.
 type MetricsCollector struct {
 	Config    *AgentConfig
 	pollCount atomic.Int64
 }
 
+// NewCollector creates a new MetricsCollector instance with the provided configuration.
 func NewCollector(config *AgentConfig) MetricsCollector {
 	return MetricsCollector{
 		Config: config,
 	}
 }
 
+// CollectMetricsWorker runs a worker that periodically collects metrics at configured intervals.
 func (collector *MetricsCollector) CollectMetricsWorker(wg *sync.WaitGroup, dataCh chan<- CollectedData) {
 	defer wg.Done()
 
@@ -38,6 +41,7 @@ func (collector *MetricsCollector) CollectMetricsWorker(wg *sync.WaitGroup, data
 	}
 }
 
+// CollectRuntimeMetrics collects Go runtime memory statistics and sends them to the data channel.
 func (collector *MetricsCollector) CollectRuntimeMetrics(dataCh chan<- CollectedData) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
@@ -104,6 +108,7 @@ func (collector *MetricsCollector) CollectRuntimeMetrics(dataCh chan<- Collected
 	}
 }
 
+// CollectGopsutilMetrics collects system metrics (CPU, memory) using gopsutil and sends them to the data channel.
 func (collector *MetricsCollector) CollectGopsutilMetrics(dataCh chan<- CollectedData) {
 	gopsutilMetrics := []models.Metrics{}
 	vm, err := mem.VirtualMemory()

@@ -3,12 +3,14 @@ package handler
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/botchris/go-pubsub/provider/memory"
 	"github.com/scouser-122/go-metrics/internal/config"
 	models "github.com/scouser-122/go-metrics/internal/model"
 	"github.com/scouser-122/go-metrics/internal/repository"
@@ -40,9 +42,8 @@ func TestListHandler(t *testing.T) {
 	cryptoService := service.CryptoService{
 		ServerConfig: &config,
 	}
-	metricsService := service.MetricsService{}
-	metricsService.Initialize(&config, &db.PostgresDatabase{})
-	handlers := InitializeHandlers(&metricsService, &cryptoService, nil)
+	metricsService := service.NewMetricsService(&config, &db.PostgresDatabase{}, nil)
+	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
 	for _, test := range listTests {
 		t.Run(test.name, func(t *testing.T) {
 			r := CreateChiRouter(&handlers)
@@ -67,6 +68,38 @@ func TestListHandler(t *testing.T) {
 			res.Body.Close()
 		})
 	}
+}
+
+func ExampleReadHandler_ListHandler() {
+	// prepare handler
+	serverConfig := config.DefaultServerConfig()
+	cryptoService := service.CryptoService{
+		ServerConfig: &serverConfig,
+	}
+
+	eventBroker := memory.NewBroker()
+	brokerContext, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	auditService := service.NewAuditService(&serverConfig)
+	auditService.SubscribeToMetricEvents(eventBroker, brokerContext)
+
+	metricsService := service.NewMetricsService(&serverConfig, &db.PostgresDatabase{}, eventBroker)
+	metricsService.SaveMetricsModel(context.Background(), generateTestMetrics(10))
+
+	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
+	r := CreateChiRouter(&handlers)
+
+	// call handler
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, request)
+	res := w.Result()
+
+	fmt.Println(res.StatusCode)
+	res.Body.Close()
+
+	// Output:
+	// 200
 }
 
 var valueTests = []struct {
@@ -158,8 +191,44 @@ func TestValueHandler(t *testing.T) {
 	}
 }
 
-func ptr[T any](v T) *T {
-	return &v
+func ExampleReadHandler_ValueHandler() {
+	// prepare handler
+	serverConfig := config.DefaultServerConfig()
+	cryptoService := service.CryptoService{
+		ServerConfig: &serverConfig,
+	}
+
+	eventBroker := memory.NewBroker()
+	brokerContext, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	auditService := service.NewAuditService(&serverConfig)
+	auditService.SubscribeToMetricEvents(eventBroker, brokerContext)
+
+	metricsService := service.NewMetricsService(&serverConfig, &db.PostgresDatabase{}, eventBroker)
+	metricsService.SaveMetricsModel(context.Background(), []models.Metrics{
+		{ID: "TestCounter", MType: models.Counter, Delta: Ptr(int64(10.0))},
+	})
+
+	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
+	r := CreateChiRouter(&handlers)
+
+	// call handler
+	request := httptest.NewRequest(http.MethodGet, "/value/counter/TestCounter", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, request)
+	res := w.Result()
+
+	fmt.Println(res.StatusCode)
+	bodyBytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(bodyBytes))
+	res.Body.Close()
+
+	// Output:
+	// 200
+	// 10
 }
 
 var valueJSONTests = []struct {
@@ -180,7 +249,7 @@ var valueJSONTests = []struct {
 			{
 				ID:    "Alloc",
 				MType: models.Gauge,
-				Value: ptr(float64(123.456)),
+				Value: Ptr(float64(123.456)),
 			},
 		},
 		want: want{
@@ -201,7 +270,7 @@ var valueJSONTests = []struct {
 			{
 				ID:    "Alloc",
 				MType: models.Counter,
-				Delta: ptr(int64(10)),
+				Delta: Ptr(int64(10)),
 			},
 		},
 		want: want{
@@ -255,13 +324,12 @@ func TestValueJSONHandler(t *testing.T) {
 	for _, test := range valueJSONTests {
 		t.Run(test.name, func(t *testing.T) {
 			config := config.DefaultServerConfig()
-			metricsService := service.MetricsService{}
+			metricsService := service.NewMetricsService(&config, &db.PostgresDatabase{}, nil)
 			cryptoService := service.CryptoService{
 				ServerConfig: &config,
 			}
-			metricsService.Initialize(&config, &db.PostgresDatabase{})
 			metricsService.Storage.SaveMetrics(context.Background(), test.metrics)
-			handlers := InitializeHandlers(&metricsService, &cryptoService, nil)
+			handlers := InitializeHandlers(metricsService, &cryptoService, nil)
 
 			r := CreateChiRouter(&handlers)
 
@@ -291,4 +359,45 @@ func TestValueJSONHandler(t *testing.T) {
 			res.Body.Close()
 		})
 	}
+}
+
+func ExampleReadHandler_ValueJSONHandler() {
+	// prepare handler
+	serverConfig := config.DefaultServerConfig()
+	cryptoService := service.CryptoService{
+		ServerConfig: &serverConfig,
+	}
+
+	eventBroker := memory.NewBroker()
+	brokerContext, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	auditService := service.NewAuditService(&serverConfig)
+	auditService.SubscribeToMetricEvents(eventBroker, brokerContext)
+
+	metricsService := service.NewMetricsService(&serverConfig, &db.PostgresDatabase{}, eventBroker)
+	metricsService.SaveMetricsModel(context.Background(), []models.Metrics{
+		{ID: "TestCounter", MType: models.Counter, Delta: Ptr(int64(10.0))},
+	})
+
+	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
+	r := CreateChiRouter(&handlers)
+
+	// call handler
+	body := `{"id":"TestCounter","type":"counter"}`
+	request := httptest.NewRequest(http.MethodPost, "/value/", bytes.NewReader([]byte(body)))
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, request)
+	res := w.Result()
+
+	fmt.Println(res.StatusCode)
+	bodyBytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(bodyBytes))
+	res.Body.Close()
+
+	// Output:
+	// 200
+	// {"id":"TestCounter","type":"counter","delta":10}
 }

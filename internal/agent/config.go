@@ -7,6 +7,7 @@ import (
 	"github.com/scouser-122/go-metrics/internal/config"
 )
 
+// AgentConfig holds all configuration settings for the metrics agent.
 type AgentConfig struct {
 	runtimeMetricNames []string
 	ServerAddress      string `env:"ADDRESS"`
@@ -20,6 +21,7 @@ type AgentConfig struct {
 	CollectChannelSize int
 }
 
+// GetDefaultAgentConfig returns an AgentConfig instance with default values.
 func GetDefaultAgentConfig() AgentConfig {
 	agentConfig := AgentConfig{}
 	agentConfig.runtimeMetricNames = []string{
@@ -61,6 +63,7 @@ func GetDefaultAgentConfig() AgentConfig {
 	return agentConfig
 }
 
+// CheckAndCorrectServerAddress ensures the server address has an HTTP scheme.
 func (agentConfig *AgentConfig) CheckAndCorrectServerAddress() {
 	if !strings.Contains(agentConfig.ServerAddress, "http") {
 		agentConfig.ServerAddress = fmt.Sprintf("http://%s", agentConfig.ServerAddress)

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/botchris/go-pubsub"
 	"github.com/scouser-122/go-metrics/internal/config"
 	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
@@ -13,34 +14,45 @@ import (
 	"github.com/scouser-122/go-metrics/internal/repository/db"
 )
 
+// MetricsService manages metrics storage, retrieval, and persistence operations.
 type MetricsService struct {
 	Storage      repository.MetricsStorage
 	serverConfig *config.ServerConfig
 	fsStorage    repository.MetricsStorage
+	eventBroker  pubsub.Broker
 }
 
-func (service *MetricsService) Initialize(config *config.ServerConfig, db *db.PostgresDatabase) {
-	service.serverConfig = config
-	service.createStorage(config, db)
+// NewMetricsService creates new MetricsService instance
+func NewMetricsService(
+	serverConfig *config.ServerConfig,
+	db *db.PostgresDatabase,
+	eventBroker pubsub.Broker,
+) *MetricsService {
+	service := MetricsService{
+		serverConfig: serverConfig,
+		eventBroker:  eventBroker,
+	}
+	service.createStorage(db)
+	return &service
 }
 
-func (service *MetricsService) createStorage(config *config.ServerConfig, db *db.PostgresDatabase) {
+func (service *MetricsService) createStorage(db *db.PostgresDatabase) {
 	if err := db.Ping(context.Background()); err == nil {
 		logger.Sugar.Infof("use database storage")
 		service.Storage = &repository.PostgresDBStorage{
 			Database: db,
 		}
-		if config.StorePath != "" {
+		if service.serverConfig.StorePath != "" {
 			logger.Sugar.Infof("additionaly use filesystem storage")
-			service.fsStorage = repository.CreateFileSystemStorage(config)
+			service.fsStorage = repository.CreateFileSystemStorage(service.serverConfig)
 			service.restoreMetricsIfRequired()
 			service.storeMetricsInFsIfRequired()
 		}
 		return
 	}
-	if config.StorePath != "" {
+	if service.serverConfig.StorePath != "" {
 		logger.Sugar.Infof("use filesystem storage")
-		service.fsStorage = repository.CreateFileSystemStorage(config)
+		service.fsStorage = repository.CreateFileSystemStorage(service.serverConfig)
 		service.Storage = service.fsStorage
 		service.restoreMetricsIfRequired()
 		service.storeMetricsInFsIfRequired()
@@ -50,6 +62,7 @@ func (service *MetricsService) createStorage(config *config.ServerConfig, db *db
 	service.Storage = &repository.MemStorage{}
 }
 
+// SaveMetric saves a metric with the specified type, name, and value.
 func (service *MetricsService) SaveMetric(ctx context.Context, metricType string, name string, value string) (string, error) {
 	var result string
 	if metricType != models.Counter && metricType != models.Gauge {
@@ -67,11 +80,12 @@ func (service *MetricsService) SaveMetric(ctx context.Context, metricType string
 				Err:     err,
 			}
 		}
-		saveResult, err := service.Storage.UpdateOrCreateCounter(ctx, name, counterValue)
+		metric, err := service.Storage.UpdateOrCreateCounter(ctx, name, counterValue)
 		if err != nil {
 			return result, err
 		}
-		result = strconv.FormatInt(saveResult, 10)
+		service.logMetricsReceiveEventToAudit(ctx, []models.Metrics{*metric})
+		result = strconv.FormatInt(*metric.Delta, 10)
 
 	case models.Gauge:
 		gaugeValue, err := strconv.ParseFloat(value, 64)
@@ -81,16 +95,18 @@ func (service *MetricsService) SaveMetric(ctx context.Context, metricType string
 				Err:     err,
 			}
 		}
-		saveResult, err := service.Storage.UpdateOrCreateGauge(ctx, name, gaugeValue)
+		metric, err := service.Storage.UpdateOrCreateGauge(ctx, name, gaugeValue)
 		if err != nil {
 			return result, err
 		}
-		result = strconv.FormatFloat(saveResult, 'f', -1, 64)
+		service.logMetricsReceiveEventToAudit(ctx, []models.Metrics{*metric})
+		result = strconv.FormatFloat(*metric.Value, 'f', -1, 64)
 	}
 
 	return result, nil
 }
 
+// SaveMetricModel saves a metric using the Metrics model structure.
 func (service *MetricsService) SaveMetricModel(ctx context.Context, metric *models.Metrics) (models.Metrics, error) {
 	var result models.Metrics
 	switch metric.MType {
@@ -112,9 +128,11 @@ func (service *MetricsService) SaveMetricModel(ctx context.Context, metric *mode
 		}
 	}
 	result, err := service.Storage.UpdateOrCreateMetric(ctx, *metric)
+	service.logMetricsReceiveEventToAudit(ctx, []models.Metrics{result})
 	return result, err
 }
 
+// SaveMetricsModel saves multiple metrics and returns the count of successfully saved metrics.
 func (service *MetricsService) SaveMetricsModel(ctx context.Context, metrics []models.Metrics) (int64, error) {
 	var result int64
 	for _, m := range metrics {
@@ -139,13 +157,16 @@ func (service *MetricsService) SaveMetricsModel(ctx context.Context, metrics []m
 	}
 	var err error
 	result, err = service.Storage.UpdateOrCreateMetrics(ctx, metrics)
+	service.logMetricsReceiveEventToAudit(ctx, metrics)
 	return result, err
 }
 
-func (service *MetricsService) GetAllMetrics(ctx context.Context) []models.Metrics {
+// GetAllMetrics retrieves all stored metrics.
+func (service *MetricsService) GetAllMetrics(ctx context.Context) ([]models.Metrics, error) {
 	return service.Storage.GetAllMetrics(ctx)
 }
 
+// GetValue retrieves the value of a metric by type and name.
 func (service *MetricsService) GetValue(ctx context.Context, metricType string, name string) (string, error) {
 	var result string
 	if metricType != models.Counter && metricType != models.Gauge {
@@ -173,6 +194,7 @@ func (service *MetricsService) GetValue(ctx context.Context, metricType string, 
 	return result, nil
 }
 
+// ReadMetric retrieves a metric with its value based on the provided metric template.
 func (service *MetricsService) ReadMetric(ctx context.Context, metric *models.Metrics) (*models.Metrics, error) {
 	if metric.MType != models.Counter && metric.MType != models.Gauge {
 		return nil, models.IncorrectMetricType{
@@ -187,8 +209,10 @@ func (service *MetricsService) restoreMetricsIfRequired() {
 	if !service.serverConfig.Restore {
 		return
 	}
-	metrics := service.fsStorage.GetAllMetrics(context.Background())
-	service.Storage.SaveMetrics(context.Background(), metrics)
+	metrics, err := service.fsStorage.GetAllMetrics(context.Background())
+	if err == nil {
+		service.Storage.SaveMetrics(context.Background(), metrics)
+	}
 }
 
 func (service *MetricsService) storeMetricsInFsIfRequired() {
@@ -205,6 +229,24 @@ func (service *MetricsService) storeMetricsInFsWorker() {
 
 	for range ticker.C {
 		ctx := context.Background()
-		service.fsStorage.SaveMetrics(ctx, service.Storage.GetAllMetrics(ctx))
+		metrics, err := service.Storage.GetAllMetrics(ctx)
+		if err == nil {
+			service.fsStorage.SaveMetrics(ctx, metrics)
+		}
 	}
+}
+
+func (service *MetricsService) logMetricsReceiveEventToAudit(ctx context.Context, metrics []models.Metrics) {
+	if service.eventBroker == nil {
+		return
+	}
+	event := models.MetricsReceivedEvent{}
+	event.TS = time.Now().UnixMilli()
+	if ipAddress, ok := ctx.Value(models.IPAddressContextKey).(string); ok {
+		event.IPAddress = ipAddress
+	}
+	for _, m := range metrics {
+		event.Metrics = append(event.Metrics, m.ID)
+	}
+	service.eventBroker.Publish(ctx, models.MetricEventTopic, event)
 }

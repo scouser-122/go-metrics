@@ -1,0 +1,382 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "contact": {}
+    },
+    "paths": {
+        "/": {
+            "get": {
+                "consumes": [
+                    "text/plain"
+                ],
+                "produces": [
+                    "text/html; charset=utf-8"
+                ],
+                "tags": [
+                    "Read"
+                ],
+                "summary": "Metrics list as html page",
+                "operationId": "ListHandler",
+                "responses": {
+                    "200": {
+                        "description": "Html page with metrics list",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ping": {
+            "get": {
+                "consumes": [
+                    "text/plain"
+                ],
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Read"
+                ],
+                "summary": "Ping DB connection",
+                "operationId": "PingDB",
+                "responses": {
+                    "200": {
+                        "description": "ok",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/update/": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Update"
+                ],
+                "summary": "Store metric value by specified params",
+                "operationId": "UpdateJSONHandler",
+                "parameters": [
+                    {
+                        "description": "Metric params",
+                        "name": "metric",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Metrics"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Saved metric data",
+                        "schema": {
+                            "$ref": "#/definitions/models.Metrics"
+                        }
+                    },
+                    "400": {
+                        "description": "Metric type/format incorrect",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/update/{type}/{name}/{value}": {
+            "post": {
+                "consumes": [
+                    "text/plain"
+                ],
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Update"
+                ],
+                "summary": "Store metric value by type and name",
+                "operationId": "UpdateHandler",
+                "parameters": [
+                    {
+                        "enum": [
+                            "counter",
+                            "gauge"
+                        ],
+                        "type": "string",
+                        "default": "counter",
+                        "description": "Metric type",
+                        "name": "type",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Metric name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Metric value",
+                        "name": "value",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Metric value",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Metric type/format incorrect",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/updates/": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Update"
+                ],
+                "summary": "Store many metrics",
+                "operationId": "UpdateJSONArrayHandler",
+                "parameters": [
+                    {
+                        "description": "Metric params",
+                        "name": "metric",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.Metrics"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Metric save status",
+                        "schema": {
+                            "$ref": "#/definitions/models.ResponsePayload"
+                        }
+                    },
+                    "400": {
+                        "description": "Metric type/format incorrect",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/value/": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Read"
+                ],
+                "summary": "Get metric value by specified params",
+                "operationId": "ValueJSONHandler",
+                "parameters": [
+                    {
+                        "description": "Metric params",
+                        "name": "metric",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Metrics"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Metric data",
+                        "schema": {
+                            "$ref": "#/definitions/models.Metrics"
+                        }
+                    },
+                    "400": {
+                        "description": "Metric type incorrect",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/value/{type}/{name}": {
+            "get": {
+                "consumes": [
+                    "text/plain"
+                ],
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Read"
+                ],
+                "summary": "Get metric value by type and name",
+                "operationId": "ValueHandler",
+                "parameters": [
+                    {
+                        "enum": [
+                            "counter",
+                            "gauge"
+                        ],
+                        "type": "string",
+                        "default": "counter",
+                        "description": "Metric type",
+                        "name": "type",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Metric name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Metric value",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Metric type incorrect",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "models.Metrics": {
+            "type": "object",
+            "required": [
+                "id",
+                "type"
+            ],
+            "properties": {
+                "delta": {
+                    "description": "Metric delta in case it has counter type.",
+                    "type": "integer"
+                },
+                "id": {
+                    "description": "The unique identifier for this metric.",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "Metric type.",
+                    "type": "string",
+                    "enum": [
+                        "counter",
+                        "gauge"
+                    ]
+                },
+                "value": {
+                    "description": "Metric value in case it has counter gauge.",
+                    "type": "number"
+                }
+            }
+        },
+        "models.ResponsePayload": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "successfully saved 5 metrics"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "ok"
+                }
+            }
+        }
+    }
+}

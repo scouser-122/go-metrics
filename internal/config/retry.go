@@ -9,12 +9,14 @@ import (
 	models "github.com/scouser-122/go-metrics/internal/model"
 )
 
+// RetryConfig holds configuration for retry logic with exponential backoff.
 type RetryConfig struct {
 	MaxAttempts       int
 	InitialBackoff    int
 	BackoffMultiplier int
 }
 
+// DefaultRetryConfig returns a RetryConfig instance with default values.
 func DefaultRetryConfig() RetryConfig {
 	return RetryConfig{
 		MaxAttempts:       3,
@@ -23,6 +25,7 @@ func DefaultRetryConfig() RetryConfig {
 	}
 }
 
+// AgentRetry executes an operation with retry logic for agent requests.
 func AgentRetry(config RetryConfig, operation func() error) error {
 	var lastErr error
 
@@ -51,6 +54,7 @@ func AgentRetry(config RetryConfig, operation func() error) error {
 	return lastErr
 }
 
+// DataBaseRequestRetry executes a database operation with retry logic and context support.
 func DataBaseRequestRetry(ctx context.Context, config RetryConfig, operation func() error) error {
 	var lastErr error
 

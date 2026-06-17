@@ -18,12 +18,14 @@ import (
 	models "github.com/scouser-122/go-metrics/internal/model"
 )
 
+// MetricsSender handles sending collected metrics to the metrics server.
 type MetricsSender struct {
 	Config *AgentConfig
 	writes chan WriteRequest
 	reads  chan ReadRequest
 }
 
+// NewSender creates a new MetricsSender instance with the provided configuration.
 func NewSender(config *AgentConfig) MetricsSender {
 	return MetricsSender{
 		Config: config,
@@ -56,6 +58,7 @@ func (sender *MetricsSender) writer(dataCh <-chan CollectedData) {
 	}
 }
 
+// SendMetricsTikerWorker runs a worker that sends metrics at regular intervals using a ticker.
 func (sender *MetricsSender) SendMetricsTikerWorker(wg *sync.WaitGroup, dataCh <-chan CollectedData) {
 	defer wg.Done()
 
@@ -74,6 +77,8 @@ func (sender *MetricsSender) SendMetricsTikerWorker(wg *sync.WaitGroup, dataCh <
 	}
 }
 
+// SendMetricsContinuousWorker runs workers that continuously send metrics as they are collected.
+// It respects the rate limit and report interval configurations.
 func (sender *MetricsSender) SendMetricsContinuousWorker(wg *sync.WaitGroup, dataCh <-chan CollectedData) {
 	defer wg.Done()
 	interval := time.Duration(sender.Config.ReportInterval) * time.Second
@@ -96,6 +101,7 @@ func (sender *MetricsSender) SendMetricsContinuousWorker(wg *sync.WaitGroup, dat
 	}
 }
 
+// SendMetrics sends a batch of metrics to the server with retry logic.
 func (sender *MetricsSender) SendMetrics(metrics []models.Metrics) {
 	var client = resty.New()
 
@@ -122,6 +128,7 @@ func (sender *MetricsSender) SendMetrics(metrics []models.Metrics) {
 	}
 }
 
+// SendMetric sends a single metric using the plain text format via URL path parameters.
 func (sender *MetricsSender) SendMetric(client *resty.Client, metric *models.Metrics) (string, error) {
 	var metricValue = ""
 	switch metric.MType {
@@ -148,6 +155,7 @@ func (sender *MetricsSender) SendMetric(client *resty.Client, metric *models.Met
 	return string(resp.Body()), nil
 }
 
+// SendMetricJSON sends a single metric using JSON format with gzip compression and optional HMAC signing.
 func (sender *MetricsSender) SendMetricJSON(client *resty.Client, metric *models.Metrics) (string, error) {
 	var url = fmt.Sprintf("%s/update", sender.Config.ServerAddress)
 	var savedMetric models.Metrics
@@ -185,6 +193,7 @@ func (sender *MetricsSender) SendMetricJSON(client *resty.Client, metric *models
 	return savedMetric.GetValueAsString()
 }
 
+// SendMetricsJSON sends multiple metrics using JSON format with gzip compression and optional HMAC signing.
 func (sender *MetricsSender) SendMetricsJSON(client *resty.Client, metrics []models.Metrics) (string, error) {
 	var url = fmt.Sprintf("%s/updates", sender.Config.ServerAddress)
 	jsonData, err := json.Marshal(metrics)

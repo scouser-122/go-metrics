@@ -10,11 +10,13 @@ import (
 	models "github.com/scouser-122/go-metrics/internal/model"
 )
 
+// FileSystemStorage provides metrics storage with filesystem persistence.
 type FileSystemStorage struct {
 	MemoryStorage MemStorage
 	config        *config.ServerConfig
 }
 
+// CreateFileSystemStorage creates a new FileSystemStorage instance with the provided configuration.
 func CreateFileSystemStorage(config *config.ServerConfig) *FileSystemStorage {
 	memStorage := MemStorage{}
 	return &FileSystemStorage{
@@ -23,22 +25,28 @@ func CreateFileSystemStorage(config *config.ServerConfig) *FileSystemStorage {
 	}
 }
 
-func (storage *FileSystemStorage) UpdateOrCreateCounter(ctx context.Context, name string, value int64) (int64, error) {
-	value, err := storage.MemoryStorage.UpdateOrCreateCounter(ctx, name, value)
+func (storage *FileSystemStorage) UpdateOrCreateCounter(ctx context.Context, name string, value int64) (*models.Metrics, error) {
+	metric, err := storage.MemoryStorage.UpdateOrCreateCounter(ctx, name, value)
 	if err != nil {
-		return value, err
+		return nil, err
 	}
 	err = storage.saveMetricsInFS()
-	return value, err
+	if err != nil {
+		return nil, err
+	}
+	return metric, nil
 }
 
-func (storage *FileSystemStorage) UpdateOrCreateGauge(ctx context.Context, name string, value float64) (float64, error) {
-	value, err := storage.MemoryStorage.UpdateOrCreateGauge(ctx, name, value)
+func (storage *FileSystemStorage) UpdateOrCreateGauge(ctx context.Context, name string, value float64) (*models.Metrics, error) {
+	metric, err := storage.MemoryStorage.UpdateOrCreateGauge(ctx, name, value)
 	if err != nil {
-		return value, err
+		return nil, err
 	}
 	err = storage.saveMetricsInFS()
-	return value, err
+	if err != nil {
+		return nil, err
+	}
+	return metric, nil
 }
 
 func (storage *FileSystemStorage) UpdateOrCreateMetric(ctx context.Context, metric models.Metrics) (models.Metrics, error) {
@@ -61,11 +69,13 @@ func (storage *FileSystemStorage) UpdateOrCreateMetrics(ctx context.Context, met
 	return count, nil
 }
 
-func (storage *FileSystemStorage) GetAllMetrics(ctx context.Context) []models.Metrics {
+func (storage *FileSystemStorage) GetAllMetrics(ctx context.Context) ([]models.Metrics, error) {
 	if len(storage.MemoryStorage.Metrics) == 0 {
-		storage.loadMetricsFromFS()
+		if err := storage.loadMetricsFromFS(); err != nil {
+			return nil, err
+		}
 	}
-	return storage.MemoryStorage.Metrics
+	return storage.MemoryStorage.Metrics, nil
 }
 
 func (storage *FileSystemStorage) SaveMetrics(ctx context.Context, metrics []models.Metrics) error {
@@ -116,19 +126,20 @@ func (storage *FileSystemStorage) saveMetricsInFS() error {
 	return nil
 }
 
-func (storage *FileSystemStorage) loadMetricsFromFS() {
+func (storage *FileSystemStorage) loadMetricsFromFS() error {
 	result := []models.Metrics{}
 	data, err := os.ReadFile(storage.config.StorePath)
 	if err != nil {
 		logger.Sugar.Errorf("couldn't load metrics from FS: %q", err)
-		return
+		return models.GetAllMetricsError{Err: err}
 	}
 	if err := json.Unmarshal(data, &result); err != nil {
 		logger.Sugar.Errorf("couldn't parse metrics loaded from FS: %q", err)
-		return
+		return models.GetAllMetricsError{Err: err}
 	}
 	if len(result) > 0 {
 		logger.Sugar.Infof("succesfully loaded %d metrics from file %s", len(result), storage.config.StorePath)
 		storage.MemoryStorage.Metrics = result
 	}
+	return nil
 }

@@ -7,6 +7,8 @@ import (
 	"github.com/scouser-122/go-metrics/internal/logger"
 )
 
+// CreateChiRouter creates and configures a chi router with the provided handlers.
+// It applies GzipMiddleware and RequestLogger to all routes and sets up 404/405 handlers.
 func CreateChiRouter(handlers *[]Handler) *chi.Mux {
 	r := chi.NewRouter()
 	for _, h := range *handlers {

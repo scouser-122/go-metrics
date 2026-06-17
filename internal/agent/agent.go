@@ -6,6 +6,7 @@ import (
 	"github.com/scouser-122/go-metrics/internal/logger"
 )
 
+// MetricsAgent orchestrates metrics collection and sending operations.
 type MetricsAgent struct {
 	Config      *AgentConfig
 	dataChannel chan CollectedData
@@ -13,6 +14,7 @@ type MetricsAgent struct {
 	sender      MetricsSender
 }
 
+// NewAgent creates a new MetricsAgent instance with the provided configuration.
 func NewAgent(config *AgentConfig) *MetricsAgent {
 	agent := MetricsAgent{
 		Config:    config,
@@ -22,6 +24,8 @@ func NewAgent(config *AgentConfig) *MetricsAgent {
 	return &agent
 }
 
+// CollectAndSendMetricsInLoop starts concurrent workers for collecting and sending metrics.
+// This method blocks until all workers complete.
 func (agent *MetricsAgent) CollectAndSendMetricsInLoop() {
 	logger.Sugar.Info("start collecting metrics")
 

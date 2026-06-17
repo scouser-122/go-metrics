@@ -7,12 +7,15 @@ import (
 	"github.com/scouser-122/go-metrics/internal/service"
 )
 
+// Handler represents an HTTP handler configuration with method, path pattern, and handler function.
 type Handler struct {
 	Method         string
 	URLPathPattern string
 	HandlerFn      http.HandlerFunc
 }
 
+// InitializeHandlers creates and returns a slice of all HTTP handlers for the metrics service.
+// It configures both update and read handlers with their respective routes.
 func InitializeHandlers(
 	metricsService *service.MetricsService,
 	cryptoService *service.CryptoService,
