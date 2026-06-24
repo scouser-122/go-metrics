@@ -117,7 +117,7 @@ func (h *UpdateHandler) processUpdateJSONRequest(res http.ResponseWriter, req *h
 	}
 
 	var metric models.Metrics
-	if err := json.Unmarshal(bodyBuf, &metric); err != nil {
+	if err = json.Unmarshal(bodyBuf, &metric); err != nil {
 		logger.Log.Error("cannot decode request JSON body ", zap.Error(err))
 		res.WriteHeader(http.StatusBadRequest)
 		return
@@ -173,7 +173,7 @@ func (h *UpdateHandler) processUpdateJSONArrayRequest(res http.ResponseWriter, r
 	}
 
 	var metrics []models.Metrics
-	if err := json.Unmarshal(bodyBuf, &metrics); err != nil {
+	if err = json.Unmarshal(bodyBuf, &metrics); err != nil {
 		logger.Log.Error("cannot decode request JSON body ", zap.Error(err))
 		res.WriteHeader(http.StatusBadRequest)
 		return

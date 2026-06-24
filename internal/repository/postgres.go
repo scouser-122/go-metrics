@@ -38,7 +38,7 @@ func (storage *PostgresDBStorage) UpdateOrCreateCounter(ctx context.Context, nam
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			metric := models.Metrics{
+			metric = models.Metrics{
 				ID:    name,
 				MType: models.Counter,
 				Delta: new(int64),
@@ -92,7 +92,7 @@ func (storage *PostgresDBStorage) UpdateOrCreateGauge(ctx context.Context, name 
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			metric := models.Metrics{
+			metric = models.Metrics{
 				ID:    name,
 				MType: models.Gauge,
 				Value: new(float64),
