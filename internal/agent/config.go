@@ -67,8 +67,8 @@ func GetDefaultAgentConfig() AgentConfig {
 }
 
 // CheckAndCorrectServerAddress ensures the server address has an HTTP scheme.
-func (agentConfig *AgentConfig) CheckAndCorrectServerAddress() {
-	if !strings.Contains(agentConfig.ServerAddress, "http") {
-		agentConfig.ServerAddress = fmt.Sprintf("http://%s", agentConfig.ServerAddress)
+func (a *AgentConfig) CheckAndCorrectServerAddress() {
+	if !strings.Contains(a.ServerAddress, "http") {
+		a.ServerAddress = fmt.Sprintf("http://%s", a.ServerAddress)
 	}
 }
