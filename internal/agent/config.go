@@ -7,7 +7,10 @@ import (
 	"github.com/scouser-122/go-metrics/internal/config"
 )
 
+//go:generate go run github.com/scouser-122/go-metrics/cmd/reset
+
 // AgentConfig holds all configuration settings for the metrics agent.
+// generate:reset
 type AgentConfig struct {
 	runtimeMetricNames []string
 	ServerAddress      string `env:"ADDRESS"`

@@ -49,7 +49,6 @@ require (
 	github.com/go-resty/resty/v2 v2.17.2
 	github.com/gordonklaus/ineffassign v0.2.0
 	github.com/jackc/pgx/v5 v5.9.2
-	github.com/kisielk/errcheck v1.20.0
 	github.com/pashagolub/pgxmock/v5 v5.1.0
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

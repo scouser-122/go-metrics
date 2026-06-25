@@ -6,6 +6,8 @@ import (
 	"strconv"
 )
 
+//go:generate go run github.com/scouser-122/go-metrics/cmd/reset
+
 const (
 	Counter = "counter"
 	Gauge   = "gauge"
@@ -20,6 +22,7 @@ const (
 // Metrics represents a metric with an ID, type, and value.
 // Delta and Value are pointers to distinguish between zero values and unset values.
 // swagger:model
+// generate:reset
 type Metrics struct {
 	// The unique identifier for this metric.
 	ID string `json:"id" binding:"required"`
