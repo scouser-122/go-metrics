@@ -103,7 +103,6 @@ func (c *gzipReader) Close() error {
 		return err
 	}
 	err := c.zr.Close()
-	c.zr = nil
 	return err
 }
 
