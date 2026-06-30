@@ -6,7 +6,8 @@ import (
 	"net/http"
 	"slices"
 	"strings"
-	"sync"
+
+	models "github.com/scouser-122/go-metrics/internal/model"
 )
 
 type gzipWriter struct {
@@ -19,18 +20,14 @@ var compressibleTypes = []string{
 	"application/json",
 }
 
-var gzipWriterPool = sync.Pool{
-	New: func() interface{} {
-		return gzip.NewWriter(io.Discard)
-	},
-}
-
-func getGzipWriter(w http.ResponseWriter) *gzipWriter {
+func newGzipWriter() *gzipWriter {
 	return &gzipWriter{
-		w:  w,
-		zw: nil,
+		w:  nil,
+		zw: gzip.NewWriter(io.Discard),
 	}
 }
+
+var gzipWriterPool = models.NewPool(newGzipWriter)
 
 func (c *gzipWriter) Header() http.Header {
 	return c.w.Header()
@@ -38,7 +35,6 @@ func (c *gzipWriter) Header() http.Header {
 
 func (c *gzipWriter) Write(p []byte) (int, error) {
 	if c.shouldCompress() {
-		c.zw = gzipWriterPool.Get().(*gzip.Writer)
 		c.zw.Reset(c.w)
 		return c.zw.Write(p)
 	}
@@ -65,10 +61,14 @@ func (c *gzipWriter) shouldCompress() bool {
 func (c *gzipWriter) Close() error {
 	if c.zw != nil {
 		err := c.zw.Close()
-		gzipWriterPool.Put(c.zw)
 		return err
 	}
 	return nil
+}
+
+func (c *gzipWriter) Reset() {
+	c.Close()
+	c.w = nil
 }
 
 type gzipReader struct {
@@ -76,21 +76,22 @@ type gzipReader struct {
 	zr *gzip.Reader
 }
 
-var gzipReaderPool = sync.Pool{
-	New: func() interface{} {
-		return new(gzip.Reader)
-	},
+func newGzipReader() *gzipReader {
+	return &gzipReader{
+		r:  nil,
+		zr: new(gzip.Reader),
+	}
 }
 
-func getGzipReader(r io.ReadCloser) (*gzipReader, error) {
-	zr := gzipReaderPool.Get().(*gzip.Reader)
-	if err := zr.Reset(r); err != nil {
-		return nil, err
+var gzipReaderPool = models.NewPool(newGzipReader)
+
+func (c *gzipReader) SetUp(r io.ReadCloser) error {
+	err := c.zr.Reset(r)
+	if err != nil {
+		return err
 	}
-	return &gzipReader{
-		r:  r,
-		zr: zr,
-	}, nil
+	c.r = r
+	return nil
 }
 
 func (c *gzipReader) Read(p []byte) (n int, err error) {
@@ -102,9 +103,12 @@ func (c *gzipReader) Close() error {
 		return err
 	}
 	err := c.zr.Close()
-	gzipReaderPool.Put(c.zr)
 	c.zr = nil
 	return err
+}
+
+func (c *gzipReader) Reset() {
+	c.Close()
 }
 
 func shouldDecompressRequest(r *http.Request) bool {
@@ -121,20 +125,21 @@ func GzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
 		acceptEncoding := r.Header.Get("Accept-Encoding")
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
 		if supportsGzip {
-			gzWriter := getGzipWriter(w)
+			gzWriter := gzipWriterPool.Get()
+			gzWriter.w = w
 			ow = gzWriter
-			defer gzWriter.Close()
+			defer gzipWriterPool.Put(gzWriter)
 		}
 
 		if shouldDecompressRequest(r) {
-			var err error
-			gzReader, err := getGzipReader(r.Body)
+			gzReader := gzipReaderPool.Get()
+			err := gzReader.SetUp(r.Body)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 			r.Body = gzReader
-			defer gzReader.Close()
+			defer gzipReaderPool.Put(gzReader)
 		}
 
 		h.ServeHTTP(ow, r)
