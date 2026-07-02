@@ -2,7 +2,10 @@ package models
 
 import "github.com/botchris/go-pubsub"
 
+//go:generate go run github.com/scouser-122/go-metrics/cmd/reset
+
 // MetricsReceivedEvent metric received event.
+// generate:reset
 type MetricsReceivedEvent struct {
 	// TS event's unix timestamp.
 	TS int64 `json:"ts"`

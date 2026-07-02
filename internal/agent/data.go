@@ -2,7 +2,10 @@ package agent
 
 import models "github.com/scouser-122/go-metrics/internal/model"
 
+//go:generate go run github.com/scouser-122/go-metrics/cmd/reset
+
 // CollectedData represents a batch of collected metrics.
+// generate:reset
 type CollectedData struct {
 	metrics []models.Metrics
 }

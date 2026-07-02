@@ -4,7 +4,8 @@
 
 Пример сборки и запуска из командной строки:
 
-go build -o server && ./server \
+```bash
+go build -ldflags "-X main.buildVersion=v1.0.0 -X main.buildDate=$(date -u '+%Y-%m-%d_%H:%M:%S') -X main.buildCommit=$(git rev-parse HEAD)" -o server && ./server \
 -a localhost:45057  \
 -l info \
 -e dev \
@@ -13,3 +14,4 @@ go build -o server && ./server \
 -k="secret_key" \
 -f="./metrics_data.json"  \
 -r
+```

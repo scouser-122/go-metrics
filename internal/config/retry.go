@@ -9,7 +9,10 @@ import (
 	models "github.com/scouser-122/go-metrics/internal/model"
 )
 
+//go:generate go run github.com/scouser-122/go-metrics/cmd/reset
+
 // RetryConfig holds configuration for retry logic with exponential backoff.
+// generate:reset
 type RetryConfig struct {
 	MaxAttempts       int
 	InitialBackoff    int

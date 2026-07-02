@@ -1,6 +1,9 @@
 package config
 
+//go:generate go run github.com/scouser-122/go-metrics/cmd/reset
+
 // ServerConfig holds all configuration settings for the metrics server.
+// generate:reset
 type ServerConfig struct {
 	// RunAddr network address to run service on.
 	RunAddr string `env:"ADDRESS"`

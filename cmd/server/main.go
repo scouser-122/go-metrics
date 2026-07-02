@@ -15,13 +15,22 @@ import (
 	_ "net/http/pprof" // подключаем пакет pprof
 )
 
+var (
+	buildVersion string
+	buildDate    string
+	buildCommit  string
+)
+
 func main() {
+
 	serverConfig := config.DefaultServerConfig()
 	parseFlags(&serverConfig)
 	parseEnvVariables(&serverConfig)
 	if err := logger.Initialize(serverConfig.LogLevel, serverConfig.Environment); err != nil {
 		panic(err)
 	}
+
+	printBuildVersion()
 
 	database := db.NewPostgresDB(serverConfig)
 	if err := database.Open(); err != nil {
@@ -53,4 +62,17 @@ func main() {
 
 	logger.Sugar.Infof("starting server on http://%s", serverConfig.RunAddr)
 	logger.Sugar.Fatal(http.ListenAndServe(serverConfig.RunAddr, r))
+}
+
+func printBuildVersion() {
+	if buildVersion == "" {
+		buildVersion = "N/A"
+	}
+	if buildDate == "" {
+		buildDate = "N/A"
+	}
+	if buildCommit == "" {
+		buildCommit = "N/A"
+	}
+	logger.Sugar.Infof("\nBuild version: %s\nBuild date: %s\nBuild commit: %s", buildVersion, buildDate, buildCommit)
 }

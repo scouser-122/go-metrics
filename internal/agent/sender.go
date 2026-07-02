@@ -165,10 +165,10 @@ func (sender *MetricsSender) SendMetricJSON(client *resty.Client, metric *models
 	}
 	var buf bytes.Buffer
 	gzw := gzip.NewWriter(&buf)
-	if _, err := gzw.Write(jsonData); err != nil {
+	if _, err = gzw.Write(jsonData); err != nil {
 		return "", err
 	}
-	if err := gzw.Close(); err != nil {
+	if err = gzw.Close(); err != nil {
 		return "", err
 	}
 	request := client.R().
@@ -202,10 +202,10 @@ func (sender *MetricsSender) SendMetricsJSON(client *resty.Client, metrics []mod
 	}
 	var buf bytes.Buffer
 	gzw := gzip.NewWriter(&buf)
-	if _, err := gzw.Write(jsonData); err != nil {
+	if _, err = gzw.Write(jsonData); err != nil {
 		return "", err
 	}
-	if err := gzw.Close(); err != nil {
+	if err = gzw.Close(); err != nil {
 		return "", err
 	}
 	response := models.ResponsePayload{}

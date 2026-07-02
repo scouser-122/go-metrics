@@ -148,8 +148,8 @@ func BenchmarkListHandlerDBPostgres(b *testing.B) {
 		}
 		mockDB := db.MockPostgresDBTestData{
 			MockDBCalls: func(tt db.MockPostgresDBTestData) {
-				mock := tt.PgxPoolIface
-				mock.ExpectPing()
+				testMock := tt.PgxPoolIface
+				testMock.ExpectPing()
 				for i := 0; i < 100; i++ {
 					metrics := []models.Metrics{}
 					for j := 0; j < 10; j++ {
@@ -169,16 +169,16 @@ func BenchmarkListHandlerDBPostgres(b *testing.B) {
 							})
 						}
 					}
-					rows := mock.NewRows([]string{"id", "type", "delta", "value"})
+					rows := testMock.NewRows([]string{"id", "type", "delta", "value"})
 					for _, m := range metrics {
 						rows.AddRow(m.ID, m.MType, m.Delta, m.Value)
 					}
-					mock.ExpectQuery("SELECT id, type, delta, value FROM metrics").
+					testMock.ExpectQuery("SELECT id, type, delta, value FROM metrics").
 						WithArgs(pgxmock.AnyArg(), pgxmock.AnyArg()).
 						WillReturnRows(rows)
-					mock.ExpectQuery("SELECT id, type, delta, value FROM metrics").
+					testMock.ExpectQuery("SELECT id, type, delta, value FROM metrics").
 						WithArgs(pgxmock.AnyArg(), pgxmock.AnyArg()).
-						WillReturnRows(mock.NewRows([]string{"id", "type", "delta", "value"}))
+						WillReturnRows(testMock.NewRows([]string{"id", "type", "delta", "value"}))
 				}
 			},
 		}

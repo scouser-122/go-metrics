@@ -7,7 +7,10 @@ import (
 	"github.com/scouser-122/go-metrics/internal/config"
 )
 
+//go:generate go run github.com/scouser-122/go-metrics/cmd/reset
+
 // AgentConfig holds all configuration settings for the metrics agent.
+// generate:reset
 type AgentConfig struct {
 	runtimeMetricNames []string
 	ServerAddress      string `env:"ADDRESS"`
@@ -64,8 +67,8 @@ func GetDefaultAgentConfig() AgentConfig {
 }
 
 // CheckAndCorrectServerAddress ensures the server address has an HTTP scheme.
-func (agentConfig *AgentConfig) CheckAndCorrectServerAddress() {
-	if !strings.Contains(agentConfig.ServerAddress, "http") {
-		agentConfig.ServerAddress = fmt.Sprintf("http://%s", agentConfig.ServerAddress)
+func (a *AgentConfig) CheckAndCorrectServerAddress() {
+	if !strings.Contains(a.ServerAddress, "http") {
+		a.ServerAddress = fmt.Sprintf("http://%s", a.ServerAddress)
 	}
 }
