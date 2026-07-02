@@ -29,6 +29,10 @@ func newGzipWriter() *gzipWriter {
 
 var gzipWriterPool = models.NewPool(newGzipWriter)
 
+func (c *gzipWriter) SetUp(w http.ResponseWriter) {
+	c.w = w
+}
+
 func (c *gzipWriter) Header() http.Header {
 	return c.w.Header()
 }
@@ -63,12 +67,12 @@ func (c *gzipWriter) Close() error {
 		err := c.zw.Close()
 		return err
 	}
+	c.w = nil
 	return nil
 }
 
 func (c *gzipWriter) Reset() {
 	c.Close()
-	c.w = nil
 }
 
 type gzipReader struct {
@@ -125,9 +129,9 @@ func GzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
 		if supportsGzip {
 			gzWriter := gzipWriterPool.Get()
-			gzWriter.w = w
+			gzWriter.SetUp(w)
 			ow = gzWriter
-			defer gzipWriterPool.Put(gzWriter)
+			defer gzipWriterPool.Put(gzWriter) // put will call Close for writer
 		}
 
 		if shouldDecompressRequest(r) {
@@ -138,7 +142,7 @@ func GzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
 				return
 			}
 			r.Body = gzReader
-			defer gzipReaderPool.Put(gzReader)
+			defer gzipReaderPool.Put(gzReader) // put will call Close for reader
 		}
 
 		h.ServeHTTP(ow, r)
