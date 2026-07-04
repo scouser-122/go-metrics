@@ -20,6 +20,7 @@ type AgentConfig struct {
 	Environment        string `env:"AGENT_ENVIRONMENT"`
 	HMACKey            string `env:"KEY"`
 	RequestRateLimit   int    `env:"RATE_LIMIT"`
+	CryptoKey          string `env:"CRYPTO_KEY"`
 	RetryConfig        config.RetryConfig
 	CollectChannelSize int
 }

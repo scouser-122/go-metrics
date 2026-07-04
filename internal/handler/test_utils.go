@@ -16,12 +16,20 @@ import (
 
 func createTestRouterPostgresDB(mockDB *db.MockPostgresDBTestData) *chi.Mux {
 	serverConfig := config.DefaultServerConfig()
+	return createTestRouterPostgresDBServerConfig(mockDB, &serverConfig)
+}
+
+func createTestRouterPostgresDBServerConfig(
+	mockDB *db.MockPostgresDBTestData,
+	serverConfig *config.ServerConfig,
+) *chi.Mux {
 	if err := logger.Initialize(serverConfig.LogLevel, serverConfig.Environment); err != nil {
 		panic(err)
 	}
 	cryptoService := service.CryptoService{
-		ServerConfig: &serverConfig,
+		ServerConfig: serverConfig,
 	}
+	cryptoService.LoadPrivateKeyIfExists()
 	mock, err := pgxmock.NewPool()
 	if err != nil {
 		panic(err)
@@ -34,10 +42,10 @@ func createTestRouterPostgresDB(mockDB *db.MockPostgresDBTestData) *chi.Mux {
 	eventBroker := memory.NewBroker()
 	brokerContext, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	auditService := service.NewAuditService(&serverConfig)
+	auditService := service.NewAuditService(serverConfig)
 	auditService.SubscribeToMetricEvents(eventBroker, brokerContext)
 
-	metricsService := service.NewMetricsService(&serverConfig, &db, eventBroker)
+	metricsService := service.NewMetricsService(serverConfig, &db, eventBroker)
 	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
 
 	return CreateChiRouter(&handlers)

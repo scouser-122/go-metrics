@@ -28,3 +28,5 @@ cmd/server/metrics_data.json
 cmd/server/audit_file.txt
 profiles/*
 cmd/staticlint/multichecker
+keys/private_key.pem
+keys/public_key.pem

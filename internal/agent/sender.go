@@ -4,11 +4,18 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/hmac"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +30,7 @@ type MetricsSender struct {
 	Config *AgentConfig
 	writes chan WriteRequest
 	reads  chan ReadRequest
+	pubKey *rsa.PublicKey
 }
 
 // NewSender creates a new MetricsSender instance with the provided configuration.
@@ -163,6 +171,14 @@ func (sender *MetricsSender) SendMetricJSON(client *resty.Client, metric *models
 	if err != nil {
 		return "", err
 	}
+	bodyEncrypted := false
+	if sender.pubKey != nil {
+		jsonData, err = sender.encryptBytes(jsonData)
+		if err != nil {
+			return "", err
+		}
+		bodyEncrypted = true
+	}
 	var buf bytes.Buffer
 	gzw := gzip.NewWriter(&buf)
 	if _, err = gzw.Write(jsonData); err != nil {
@@ -183,6 +199,9 @@ func (sender *MetricsSender) SendMetricJSON(client *resty.Client, metric *models
 		hash := h.Sum(nil)
 		request = request.SetHeader("HashSHA256", hex.EncodeToString(hash))
 	}
+	if bodyEncrypted {
+		request = request.SetHeader("X-Body-Encrypted", "true")
+	}
 	resp, err := request.Post(url)
 	if err != nil {
 		return "", err
@@ -199,6 +218,14 @@ func (sender *MetricsSender) SendMetricsJSON(client *resty.Client, metrics []mod
 	jsonData, err := json.Marshal(metrics)
 	if err != nil {
 		return "", err
+	}
+	bodyEncrypted := false
+	if sender.pubKey != nil {
+		jsonData, err = sender.encryptBytes(jsonData)
+		if err != nil {
+			return "", err
+		}
+		bodyEncrypted = true
 	}
 	var buf bytes.Buffer
 	gzw := gzip.NewWriter(&buf)
@@ -221,6 +248,9 @@ func (sender *MetricsSender) SendMetricsJSON(client *resty.Client, metrics []mod
 		hash := h.Sum(nil)
 		request = request.SetHeader("HashSHA256", hex.EncodeToString(hash))
 	}
+	if bodyEncrypted {
+		request = request.SetHeader("X-Body-Encrypted", "true")
+	}
 	resp, err := request.Post(url)
 	if err != nil {
 		return "", err
@@ -229,4 +259,94 @@ func (sender *MetricsSender) SendMetricsJSON(client *resty.Client, metrics []mod
 		return "", fmt.Errorf("incorrect response status code: %d", resp.StatusCode())
 	}
 	return response.Message, nil
+}
+
+// LoadPublicKeyIfExists loads public key if it exists in FS,
+// if loaded - will be used to encode requests to server
+func (sender *MetricsSender) LoadPublicKeyIfExists() {
+	if sender.Config.CryptoKey == "" {
+		logger.Sugar.Info("crypto key path not specified")
+		return
+	}
+	lastSlash := strings.LastIndex(sender.Config.CryptoKey, "/")
+	if lastSlash < 0 {
+		logger.Sugar.Errorf("crypto key path not correct: %s", sender.Config.CryptoKey)
+		return
+	}
+	dirPath := sender.Config.CryptoKey[:lastSlash]
+
+	root, err := os.OpenRoot(dirPath)
+	if err != nil {
+		logger.Sugar.Error(err)
+		return
+	}
+	defer root.Close()
+
+	fileName := sender.Config.CryptoKey[lastSlash+1:]
+	file, err := root.Open(fileName)
+	if err != nil {
+		logger.Sugar.Error(err)
+		return
+	}
+	defer file.Close()
+
+	publicKeyBytes, err := io.ReadAll(file)
+	if err != nil {
+		logger.Sugar.Error(err)
+		return
+	}
+
+	block, _ := pem.Decode(publicKeyBytes)
+	if block == nil {
+		logger.Sugar.Errorf("failed to decode public key PEM block")
+		return
+	}
+
+	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		logger.Sugar.Errorf("failed to parse public key: %w", err)
+		return
+	}
+
+	// Type assert to RSA public key
+	rsaPub, ok := pub.(*rsa.PublicKey)
+	if !ok {
+		logger.Sugar.Errorf("not an RSA public key")
+		return
+	}
+
+	sender.pubKey = rsaPub
+	logger.Sugar.Info("successfully loaded public key")
+}
+
+func (sender *MetricsSender) encryptBytes(message []byte) ([]byte, error) {
+	// Calculate maximum message size per chunk
+	// For RSA OAEP with SHA-256: keySize/8 - 2*hashSize - 2
+	hash := sha256.New()
+	maxChunkSize := sender.pubKey.Size() - 2*hash.Size() - 2
+
+	// If the message is small enough, encrypt directly
+	if len(message) <= maxChunkSize {
+		return rsa.EncryptOAEP(sha256.New(), rand.Reader, sender.pubKey, message, nil)
+	}
+
+	// Split the message into chunks
+	var encryptedData []byte
+	for start := 0; start < len(message); start += maxChunkSize {
+		end := start + maxChunkSize
+		if end > len(message) {
+			end = len(message)
+		}
+
+		chunk := message[start:end]
+		encryptedChunk, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, sender.pubKey, chunk, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encrypt chunk: %w", err)
+		}
+
+		// Append the encrypted chunk to the result
+		encryptedData = append(encryptedData, encryptedChunk...)
+	}
+
+	return encryptedData, nil
 }

@@ -49,6 +49,7 @@ func main() {
 	cryptoService := service.CryptoService{
 		ServerConfig: &serverConfig,
 	}
+	cryptoService.LoadPrivateKeyIfExists()
 
 	handlers := handler.InitializeHandlers(metricsService, &cryptoService, &database)
 

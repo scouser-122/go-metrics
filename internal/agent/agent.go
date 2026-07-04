@@ -21,6 +21,7 @@ func NewAgent(config *AgentConfig) *MetricsAgent {
 		collector: NewCollector(config),
 		sender:    NewSender(config),
 	}
+	agent.sender.LoadPublicKeyIfExists()
 	return &agent
 }
 

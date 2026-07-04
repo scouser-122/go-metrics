@@ -37,6 +37,9 @@ type ServerConfig struct {
 
 	// ProfileEnabled flag to start profiing server on port 6060.
 	ProfileEnabled bool `env:"PROFILE_ENABLED"`
+
+	// CryptoKey path to private key for request body decryption
+	CryptoKey string `env:"CRYPTO_KEY"`
 }
 
 // DefaultServerConfig returns a ServerConfig instance with default values.

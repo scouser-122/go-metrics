@@ -38,11 +38,11 @@ var listTests = []struct {
 }
 
 func TestListHandler(t *testing.T) {
-	config := config.DefaultServerConfig()
+	serverConfig := config.DefaultServerConfig()
 	cryptoService := service.CryptoService{
-		ServerConfig: &config,
+		ServerConfig: &serverConfig,
 	}
-	metricsService := service.NewMetricsService(&config, &db.PostgresDatabase{}, nil)
+	metricsService := service.NewMetricsService(&serverConfig, &db.PostgresDatabase{}, nil)
 	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
 	for _, test := range listTests {
 		t.Run(test.name, func(t *testing.T) {
@@ -145,7 +145,7 @@ var valueTests = []struct {
 }
 
 func TestValueHandler(t *testing.T) {
-	config := config.DefaultServerConfig()
+	serverConfig := config.DefaultServerConfig()
 	memStorage := repository.MemStorage{}
 	memStorage.Metrics = append(memStorage.Metrics, models.Metrics{
 		ID:    "PollCount",
@@ -162,7 +162,7 @@ func TestValueHandler(t *testing.T) {
 		Storage: &memStorage,
 	}
 	cryptoService := service.CryptoService{
-		ServerConfig: &config,
+		ServerConfig: &serverConfig,
 	}
 	handlers := InitializeHandlers(&metricsService, &cryptoService, nil)
 	for _, test := range valueTests {
@@ -323,10 +323,10 @@ var valueJSONTests = []struct {
 func TestValueJSONHandler(t *testing.T) {
 	for _, test := range valueJSONTests {
 		t.Run(test.name, func(t *testing.T) {
-			config := config.DefaultServerConfig()
-			metricsService := service.NewMetricsService(&config, &db.PostgresDatabase{}, nil)
+			serverConfig := config.DefaultServerConfig()
+			metricsService := service.NewMetricsService(&serverConfig, &db.PostgresDatabase{}, nil)
 			cryptoService := service.CryptoService{
-				ServerConfig: &config,
+				ServerConfig: &serverConfig,
 			}
 			metricsService.Storage.SaveMetrics(context.Background(), test.metrics)
 			handlers := InitializeHandlers(metricsService, &cryptoService, nil)

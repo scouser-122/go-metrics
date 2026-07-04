@@ -35,6 +35,7 @@ func parseFlags(agentConfig *agent.AgentConfig) {
 	flag.StringVar(&agentConfig.Environment, "e", "dev", "agent environment")
 	flag.StringVar(&agentConfig.HMACKey, "k", "", "HMAC key to calculate hash of request")
 	flag.IntVar(&agentConfig.RequestRateLimit, "l", 2, "send metrics request rate limit")
+	flag.StringVar(&agentConfig.CryptoKey, "crypto-key", "", "public key path to encode requests")
 	flag.Parse()
 	agentConfig.CheckAndCorrectServerAddress()
 }

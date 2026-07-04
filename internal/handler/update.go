@@ -116,6 +116,15 @@ func (h *UpdateHandler) processUpdateJSONRequest(res http.ResponseWriter, req *h
 		}
 	}
 
+	if req.Header.Get("X-Body-Encrypted") != "" {
+		bodyBuf, err = h.cryptoService.DecryptRequestBody(bodyBuf)
+		if err != nil {
+			logger.Sugar.Errorf("cannot decrypt body", err)
+			res.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+
 	var metric models.Metrics
 	if err = json.Unmarshal(bodyBuf, &metric); err != nil {
 		logger.Log.Error("cannot decode request JSON body ", zap.Error(err))
@@ -168,6 +177,15 @@ func (h *UpdateHandler) processUpdateJSONArrayRequest(res http.ResponseWriter, r
 		if hashHeader != bodyHash {
 			logger.Sugar.Errorf("HashSHA256 header %q doesn't match body hash %q", hashHeader, bodyHash)
 			res.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+
+	if req.Header.Get("X-Body-Encrypted") != "" {
+		bodyBuf, err = h.cryptoService.DecryptRequestBody(bodyBuf)
+		if err != nil {
+			logger.Sugar.Errorf("cannot decrypt body", err)
+			res.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	}
