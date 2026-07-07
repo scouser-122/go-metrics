@@ -76,48 +76,48 @@ func DefaultServerConfig() ServerConfig {
 }
 
 // Load sequentually loads config from different sources
-func (c *ServerConfig) Load() {
-	c.parseFlags()
-	c.parseEnvVariables()
-	c.overrideFromLocalFileIfExists()
-	c.overrideFromDefault()
+func (s *ServerConfig) Load() {
+	s.parseFlags()
+	s.parseEnvVariables()
+	s.overrideFromLocalFileIfExists()
+	s.overrideFromDefault()
 }
 
-func (c *ServerConfig) parseFlags() {
-	flag.StringVar(&c.RunAddr, "a", "", "address and port to run server")
-	flag.StringVar(&c.LogLevel, "l", "", "logging level")
-	flag.StringVar(&c.Environment, "e", "", "environment")
-	flag.IntVar(&c.StoreInterval, "i", 0, "time interval in seconds to store metrics in file system")
-	flag.StringVar(&c.StorePath, "f", "", "metrics store file path")
-	flag.BoolVar(&c.Restore, "r", false, "should restore metrics data from storage file or not")
-	flag.StringVar(&c.DBDataSourceName, "d", "", "data source name for database connection")
-	flag.StringVar(&c.HMACKey, "k", "", "HMAC key to calculate hash of request")
-	flag.StringVar(&c.AuditFile, "audit-file", "", "path to file where audit events should be written")
-	flag.StringVar(&c.AuditURL, "audit-url", "", "URL of service where audit events should be sent to")
-	flag.BoolVar(&c.ProfileEnabled, "profile-enabled", false, "flag to start profiing server on port 6060")
-	flag.StringVar(&c.CryptoKey, "crypto-key", "", "private key path to decode requests")
-	flag.StringVar(&c.ConfigFile, "c", "", "path to config file")
-	flag.StringVar(&c.ConfigFile, "config", "", "path to config file")
+func (s *ServerConfig) parseFlags() {
+	flag.StringVar(&s.RunAddr, "a", "", "address and port to run server")
+	flag.StringVar(&s.LogLevel, "l", "", "logging level")
+	flag.StringVar(&s.Environment, "e", "", "environment")
+	flag.IntVar(&s.StoreInterval, "i", 0, "time interval in seconds to store metrics in file system")
+	flag.StringVar(&s.StorePath, "f", "", "metrics store file path")
+	flag.BoolVar(&s.Restore, "r", false, "should restore metrics data from storage file or not")
+	flag.StringVar(&s.DBDataSourceName, "d", "", "data source name for database connection")
+	flag.StringVar(&s.HMACKey, "k", "", "HMAC key to calculate hash of request")
+	flag.StringVar(&s.AuditFile, "audit-file", "", "path to file where audit events should be written")
+	flag.StringVar(&s.AuditURL, "audit-url", "", "URL of service where audit events should be sent to")
+	flag.BoolVar(&s.ProfileEnabled, "profile-enabled", false, "flag to start profiing server on port 6060")
+	flag.StringVar(&s.CryptoKey, "crypto-key", "", "private key path to decode requests")
+	flag.StringVar(&s.ConfigFile, "c", "", "path to config file")
+	flag.StringVar(&s.ConfigFile, "config", "", "path to config file")
 	flag.Parse()
 }
 
-func (c *ServerConfig) parseEnvVariables() {
-	err := env.Parse(c)
+func (s *ServerConfig) parseEnvVariables() {
+	err := env.Parse(s)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
 // overrideFromLocalFileIfExists overrides parameters which were not set by flags or env variables
-func (c *ServerConfig) overrideFromLocalFileIfExists() {
-	if c.ConfigFile == "" {
+func (s *ServerConfig) overrideFromLocalFileIfExists() {
+	if s.ConfigFile == "" {
 		fmt.Printf("config file not specified\n")
 		return
 	}
 	var dirPath string
-	lastSlash := strings.LastIndex(c.ConfigFile, "/")
+	lastSlash := strings.LastIndex(s.ConfigFile, "/")
 	if lastSlash >= 0 {
-		dirPath = c.ConfigFile[:lastSlash]
+		dirPath = s.ConfigFile[:lastSlash]
 	}
 
 	root, err := os.OpenRoot(dirPath)
@@ -127,7 +127,7 @@ func (c *ServerConfig) overrideFromLocalFileIfExists() {
 	}
 	defer root.Close()
 
-	fileName := c.ConfigFile[lastSlash+1:]
+	fileName := s.ConfigFile[lastSlash+1:]
 	file, err := root.Open(fileName)
 	if err != nil {
 		fmt.Printf("open config file error: %q\n", err)
@@ -143,12 +143,12 @@ func (c *ServerConfig) overrideFromLocalFileIfExists() {
 		return
 	}
 
-	utils.MergeStructs(c, &configFromFile)
-	fmt.Printf("successfully loaded config file %q\n", c.ConfigFile)
+	utils.MergeStructs(s, &configFromFile)
+	fmt.Printf("successfully loaded config file %q\n", s.ConfigFile)
 }
 
 // overrideFromDefault overrides parameters which were not set by flags or env variables
-func (c *ServerConfig) overrideFromDefault() {
+func (s *ServerConfig) overrideFromDefault() {
 	defaultConfig := DefaultServerConfig()
-	utils.MergeStructs(c, &defaultConfig)
+	utils.MergeStructs(s, &defaultConfig)
 }
