@@ -4,5 +4,10 @@
     "report_interval": 5,
     "rate_limit": 3,
     "key": "secret_key",
+    "retry_config": {
+        "max_attempts": 2,
+        "initial_backoff": 500,
+        "backoff_multiplier": 1000
+    },
     "crypto_key": "../../keys/public_key.pem"
 }
