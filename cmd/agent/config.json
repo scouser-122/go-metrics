@@ -1,0 +1,8 @@
+{
+    "address": "localhost:45057",
+    "poll_interval": 2,
+    "report_interval": 5,
+    "rate_limit": 3,
+    "key": "secret_key",
+    "crypto_key": "../../keys/public_key.pem"
+}

@@ -22,10 +22,8 @@ var (
 )
 
 func main() {
-
-	serverConfig := config.DefaultServerConfig()
-	parseFlags(&serverConfig)
-	parseEnvVariables(&serverConfig)
+	serverConfig := config.ServerConfig{}
+	serverConfig.Load()
 	if err := logger.Initialize(serverConfig.LogLevel, serverConfig.Environment); err != nil {
 		panic(err)
 	}

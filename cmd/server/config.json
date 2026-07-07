@@ -1,0 +1,13 @@
+{
+    "address": "localhost:45057",
+    "log_level": "info",
+    "service_environment": "dev",
+    "store_interval": 12,
+    "restore": true,
+    "database_dsn": "postgres://postgres:123@localhost:5432/metrics_db?sslmode=disable",
+    "key": "secret_key",
+    "audit_file": "./audit_file.txt",
+    "audit_url": "http://localhost:8081/audit/metrics",
+    "profile_enabled": false,
+    "crypto_key": "../../keys/private_key.pem"
+}

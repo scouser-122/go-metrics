@@ -14,9 +14,9 @@ import (
 // RetryConfig holds configuration for retry logic with exponential backoff.
 // generate:reset
 type RetryConfig struct {
-	MaxAttempts       int
-	InitialBackoff    int
-	BackoffMultiplier int
+	MaxAttempts       int `json:"max_attempts"`
+	InitialBackoff    int `json:"initial_backoff"`
+	BackoffMultiplier int `json:"backoff_multiplier"`
 }
 
 // DefaultRetryConfig returns a RetryConfig instance with default values.
