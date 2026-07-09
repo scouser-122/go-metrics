@@ -110,6 +110,8 @@ func (sender *MetricsSender) SendMetricsContinuousWorker(
 						return
 					default:
 					}
+
+					// wait for next report interval
 					timeDiff := time.Since(prevTime)
 					if timeDiff < interval {
 						time.Sleep(interval - timeDiff)
