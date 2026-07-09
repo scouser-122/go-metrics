@@ -101,17 +101,15 @@ func (sender *MetricsSender) SendMetricsContinuousWorker(
 			for data := range dataCh {
 				logger.Sugar.Infof("start sending metrics in worker %d", w)
 				sender.SendMetrics(data.metrics)
-
-				// stop process if stop signal received
-				select {
-				case <-stopCh:
-					logger.Sugar.Infof("stop sending metrics in worker %d", w)
-					wg.Done()
-					return
-				default:
-				}
-
 				if len(dataCh) == 0 {
+					// stop process if stop signal received
+					select {
+					case <-stopCh:
+						logger.Sugar.Infof("stop sending metrics in worker %d", w)
+						wg.Done()
+						return
+					default:
+					}
 					timeDiff := time.Since(prevTime)
 					if timeDiff < interval {
 						time.Sleep(interval - timeDiff)
