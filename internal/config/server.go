@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/scouser-122/go-metrics/internal/utils"
@@ -55,6 +56,9 @@ type ServerConfig struct {
 
 	// ConfigFile path to config file
 	ConfigFile string `env:"CONFIG"`
+
+	// ShutdownTimeout timeout which server will wait to finist processing requests before shutdown
+	ShutdownTimeout time.Duration `env:"SHUTDOW_TIMEOUT"`
 }
 
 // DefaultServerConfig returns a ServerConfig instance with default values.
@@ -72,6 +76,7 @@ func DefaultServerConfig() ServerConfig {
 		AuditURL:         "",
 		ProfileEnabled:   false,
 		ConfigFile:       "",
+		ShutdownTimeout:  30 * time.Second,
 	}
 }
 

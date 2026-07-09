@@ -48,7 +48,7 @@ func createTestRouterPostgresDBServerConfig(
 	metricsService := service.NewMetricsService(serverConfig, &db, eventBroker)
 	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
 
-	return CreateChiRouter(&handlers)
+	return CreateChiRouterWithHandlers(&handlers)
 }
 
 func Ptr[T any](v T) *T {
