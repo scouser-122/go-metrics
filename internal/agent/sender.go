@@ -87,10 +87,14 @@ func (sender *MetricsSender) SendMetricsTikerWorker(wg *sync.WaitGroup, dataCh <
 
 // SendMetricsContinuousWorker runs workers that continuously send metrics as they are collected.
 // It respects the rate limit and report interval configurations.
-func (sender *MetricsSender) SendMetricsContinuousWorker(wg *sync.WaitGroup, dataCh <-chan CollectedData) {
-	defer wg.Done()
+func (sender *MetricsSender) SendMetricsContinuousWorker(
+	wg *sync.WaitGroup,
+	dataCh <-chan CollectedData,
+	stopCh chan struct{},
+) {
 	interval := time.Duration(sender.Config.ReportInterval) * time.Second
 	for w := 1; w <= sender.Config.RequestRateLimit; w++ {
+		wg.Add(1)
 		go func() {
 			prevTime := time.Now()
 			time.Sleep(interval)
@@ -104,6 +108,13 @@ func (sender *MetricsSender) SendMetricsContinuousWorker(wg *sync.WaitGroup, dat
 					}
 				}
 				prevTime = time.Now()
+				select {
+				case <-stopCh:
+					logger.Sugar.Infof("stop sending metrics in worker %d", w)
+					wg.Done()
+					return
+				default:
+				}
 			}
 		}()
 	}
