@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/caarlos0/env/v6"
-	"github.com/scouser-122/go-metrics/internal/utils"
 )
 
 //go:generate go run github.com/scouser-122/go-metrics/cmd/reset
@@ -61,6 +60,48 @@ type ServerConfig struct {
 	ShutdownTimeout time.Duration `env:"SHUTDOW_TIMEOUT"`
 }
 
+func (s *ServerConfig) merge(other *ServerConfig) {
+	if other.RunAddr != "" && other.RunAddr != s.RunAddr {
+		s.RunAddr = other.RunAddr
+	}
+	if other.LogLevel != "" && other.LogLevel != s.LogLevel {
+		s.LogLevel = other.LogLevel
+	}
+	if other.Environment != "" && other.Environment != s.Environment {
+		s.Environment = other.Environment
+	}
+	if other.StoreInterval != 0 && other.StoreInterval != s.StoreInterval {
+		s.StoreInterval = other.StoreInterval
+	}
+	if other.StorePath != "" && other.StorePath != s.StorePath {
+		s.StorePath = other.StorePath
+	}
+	if other.Restore != s.Restore {
+		s.Restore = other.Restore
+	}
+	if other.DBDataSourceName != "" && other.DBDataSourceName != s.DBDataSourceName {
+		s.DBDataSourceName = other.DBDataSourceName
+	}
+	if other.HMACKey != "" && other.HMACKey != s.HMACKey {
+		s.HMACKey = other.HMACKey
+	}
+	if other.AuditFile != "" && other.AuditFile != s.AuditFile {
+		s.AuditFile = other.AuditFile
+	}
+	if other.AuditURL != "" && other.AuditURL != s.AuditURL {
+		s.AuditURL = other.AuditURL
+	}
+	if other.ProfileEnabled != false && other.ProfileEnabled != s.ProfileEnabled {
+		s.ProfileEnabled = other.ProfileEnabled
+	}
+	if other.CryptoKey != "" && other.CryptoKey != s.CryptoKey {
+		s.CryptoKey = other.CryptoKey
+	}
+	if other.ShutdownTimeout != 30*time.Second && other.ShutdownTimeout != s.ShutdownTimeout {
+		s.ShutdownTimeout = other.ShutdownTimeout
+	}
+}
+
 // DefaultServerConfig returns a ServerConfig instance with default values.
 func DefaultServerConfig() ServerConfig {
 	return ServerConfig{
@@ -80,30 +121,102 @@ func DefaultServerConfig() ServerConfig {
 	}
 }
 
-// Load sequentually loads config from different sources
-func (s *ServerConfig) Load() {
-	s.parseFlags()
-	s.parseEnvVariables()
-	s.overrideFromLocalFileIfExists()
-	s.overrideFromDefault()
+type serverConfigFlags struct {
+	runAddr           *string
+	logLevel          *string
+	environment       *string
+	storeInterval     *int
+	storePath         *string
+	configFile        *string
+	configFileLong    *string
+	restore           *bool
+	fDBDataSourceName *string
+	fHMACKey          *string
+	auditFile         *string
+	auditURL          *string
+	profileEnabled    *bool
+	cryptoKey         *string
 }
 
-func (s *ServerConfig) parseFlags() {
-	flag.StringVar(&s.RunAddr, "a", "", "address and port to run server")
-	flag.StringVar(&s.LogLevel, "l", "", "logging level")
-	flag.StringVar(&s.Environment, "e", "", "environment")
-	flag.IntVar(&s.StoreInterval, "i", 0, "time interval in seconds to store metrics in file system")
-	flag.StringVar(&s.StorePath, "f", "", "metrics store file path")
-	flag.BoolVar(&s.Restore, "r", false, "should restore metrics data from storage file or not")
-	flag.StringVar(&s.DBDataSourceName, "d", "", "data source name for database connection")
-	flag.StringVar(&s.HMACKey, "k", "", "HMAC key to calculate hash of request")
-	flag.StringVar(&s.AuditFile, "audit-file", "", "path to file where audit events should be written")
-	flag.StringVar(&s.AuditURL, "audit-url", "", "URL of service where audit events should be sent to")
-	flag.BoolVar(&s.ProfileEnabled, "profile-enabled", false, "flag to start profiing server on port 6060")
-	flag.StringVar(&s.CryptoKey, "crypto-key", "", "private key path to decode requests")
-	flag.StringVar(&s.ConfigFile, "c", "", "path to config file")
-	flag.StringVar(&s.ConfigFile, "config", "", "path to config file")
+func (sf *serverConfigFlags) define() {
+	sf.runAddr = flag.String("a", "", "address and port to run server")
+	sf.logLevel = flag.String("l", "debug", "logging level")
+	sf.environment = flag.String("e", "prod", "environment")
+	sf.storeInterval = flag.Int("i", 0, "time interval in seconds to store metrics in file system")
+	sf.storePath = flag.String("f", "", "metrics store file path")
+	sf.configFile = flag.String("c", "", "path to config file")
+	sf.configFileLong = flag.String("config", "prod", "environment")
+	sf.restore = flag.Bool("r", false, "should restore metrics data from storage file or not")
+	sf.fDBDataSourceName = flag.String("d", "", "data source name for database connection")
+	sf.fHMACKey = flag.String("k", "", "HMAC key to calculate hash of request")
+	sf.auditFile = flag.String("audit-file", "", "path to file where audit events should be written")
+	sf.auditURL = flag.String("audit-url", "", "URL of service where audit events should be sent to")
+	sf.profileEnabled = flag.Bool("profile-enabled", false, "flag to start profiing server on port 6060")
+	sf.cryptoKey = flag.String("crypto-key", "", "private key path to decode requests")
+}
+
+// Load sequentually loads config from different sources
+func (s *ServerConfig) Load() {
+	defaultConfig := DefaultServerConfig()
+	s.merge(&defaultConfig)
+
+	sf := serverConfigFlags{}
+	sf.define()
+
+	s.getConfigFileParam(&sf)
+
+	s.overrideFromLocalFileIfExists()
+
+	s.parseFlags(&sf)
+	s.parseEnvVariables()
+}
+
+func (s *ServerConfig) getConfigFileParam(sf *serverConfigFlags) {
 	flag.Parse()
+	flag.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "c":
+			s.ConfigFile = *sf.configFile
+		case "config":
+			s.ConfigFile = *sf.configFileLong
+		}
+	})
+	envConfigFile := os.Getenv("CONFIG")
+	if envConfigFile != "" {
+		s.ConfigFile = envConfigFile
+	}
+}
+
+func (s *ServerConfig) parseFlags(sf *serverConfigFlags) {
+	flag.Parse()
+	flag.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "a":
+			s.RunAddr = *sf.runAddr
+		case "l":
+			s.LogLevel = *sf.logLevel
+		case "e":
+			s.Environment = *sf.environment
+		case "i":
+			s.StoreInterval = *sf.storeInterval
+		case "f":
+			s.StorePath = *sf.storePath
+		case "r":
+			s.Restore = *sf.restore
+		case "d":
+			s.DBDataSourceName = *sf.fDBDataSourceName
+		case "k":
+			s.HMACKey = *sf.fHMACKey
+		case "audit-file":
+			s.AuditFile = *sf.auditFile
+		case "audit-url":
+			s.AuditURL = *sf.auditURL
+		case "profile-enabled":
+			s.ProfileEnabled = *sf.profileEnabled
+		case "crypto-key":
+			s.CryptoKey = *sf.cryptoKey
+		}
+	})
 }
 
 func (s *ServerConfig) parseEnvVariables() {
@@ -140,7 +253,7 @@ func (s *ServerConfig) overrideFromLocalFileIfExists() {
 	}
 	defer file.Close()
 
-	var configFromFile ServerConfig
+	configFromFile := DefaultServerConfig()
 	decoder := json.NewDecoder(file)
 	err = decoder.Decode(&configFromFile)
 	if err != nil {
@@ -148,12 +261,6 @@ func (s *ServerConfig) overrideFromLocalFileIfExists() {
 		return
 	}
 
-	utils.MergeStructs(s, &configFromFile)
+	s.merge(&configFromFile)
 	fmt.Printf("successfully loaded config file %q\n", s.ConfigFile)
-}
-
-// overrideFromDefault overrides parameters which were not set by flags or env variables
-func (s *ServerConfig) overrideFromDefault() {
-	defaultConfig := DefaultServerConfig()
-	utils.MergeStructs(s, &defaultConfig)
 }

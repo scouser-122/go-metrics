@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/scouser-122/go-metrics/internal/config"
-	"github.com/scouser-122/go-metrics/internal/utils"
 )
 
 //go:generate go run github.com/scouser-122/go-metrics/cmd/reset
@@ -30,6 +30,59 @@ type AgentConfig struct {
 	RetryConfig        config.RetryConfig `json:"retry_config"`
 	CollectChannelSize int                `json:"collect_channel_size"`
 	ConfigFile         string             `env:"CONFIG"`
+}
+
+func (a *AgentConfig) merge(other *AgentConfig) {
+	namesEqual := true
+	if len(other.RuntimeMetricNames) != len(a.RuntimeMetricNames) {
+		namesEqual = false
+	} else {
+		for _, n := range other.RuntimeMetricNames {
+			if slices.Index(a.RuntimeMetricNames, n) == -1 {
+				namesEqual = false
+				break
+			}
+		}
+	}
+	if !namesEqual {
+		a.RuntimeMetricNames = other.RuntimeMetricNames
+	}
+	if other.ServerAddress != a.ServerAddress {
+		a.ServerAddress = other.ServerAddress
+	}
+	if other.ReportInterval != a.ReportInterval {
+		a.ReportInterval = other.ReportInterval
+	}
+	if other.PollInterval != a.PollInterval {
+		a.PollInterval = other.PollInterval
+	}
+	if other.LogLevel != a.LogLevel {
+		a.LogLevel = other.LogLevel
+	}
+	if other.Environment != a.Environment {
+		a.Environment = other.Environment
+	}
+	if other.HMACKey != a.HMACKey {
+		a.HMACKey = other.HMACKey
+	}
+	if other.RequestRateLimit != a.RequestRateLimit {
+		a.RequestRateLimit = other.RequestRateLimit
+	}
+	if other.CryptoKey != a.CryptoKey {
+		a.CryptoKey = other.CryptoKey
+	}
+	if other.RetryConfig.MaxAttempts != a.RetryConfig.MaxAttempts {
+		a.RetryConfig.MaxAttempts = other.RetryConfig.MaxAttempts
+	}
+	if other.RetryConfig.InitialBackoff != a.RetryConfig.InitialBackoff {
+		a.RetryConfig.InitialBackoff = other.RetryConfig.InitialBackoff
+	}
+	if other.RetryConfig.BackoffMultiplier != a.RetryConfig.BackoffMultiplier {
+		a.RetryConfig.BackoffMultiplier = other.RetryConfig.BackoffMultiplier
+	}
+	if other.CollectChannelSize != a.CollectChannelSize {
+		a.CollectChannelSize = other.CollectChannelSize
+	}
 }
 
 // GetDefaultAgentConfig returns an AgentConfig instance with default values.
@@ -66,35 +119,97 @@ func GetDefaultAgentConfig() AgentConfig {
 	}
 	agentConfig.ServerAddress = "http://localhost:8080"
 	agentConfig.PollInterval = 2
-	agentConfig.ReportInterval = 10
+	agentConfig.ReportInterval = 7
 	agentConfig.LogLevel = "info"
 	agentConfig.Environment = "dev"
 	agentConfig.RetryConfig = config.DefaultRetryConfig()
+	agentConfig.RequestRateLimit = 3
 	agentConfig.CollectChannelSize = 50
 	return agentConfig
 }
 
+type agentConfigFlags struct {
+	serverAddress    *string
+	logLevel         *string
+	environment      *string
+	reportInterval   *int
+	pollInterval     *int
+	configFile       *string
+	configFileLong   *string
+	fHMACKey         *string
+	requestRateLimit *int
+	cryptoKey        *string
+}
+
+func (af *agentConfigFlags) define() {
+	af.serverAddress = flag.String("a", "", "server address in format host:port")
+	af.logLevel = flag.String("log", "debug", "logging level")
+	af.environment = flag.String("e", "prod", "environment")
+	af.reportInterval = flag.Int("r", 7, "metrics report interval in seconds")
+	af.pollInterval = flag.Int("p", 2, "metrics poll interval in seconds")
+	af.configFile = flag.String("c", "", "path to config file")
+	af.configFileLong = flag.String("config", "prod", "environment")
+	af.fHMACKey = flag.String("k", "", "HMAC key to calculate hash of request")
+	af.requestRateLimit = flag.Int("l", 3, "send metrics request rate limit")
+	af.cryptoKey = flag.String("crypto-key", "", "private key path to decode requests")
+}
+
 // Load sequentually loads config from different sources
 func (a *AgentConfig) Load() {
-	a.parseFlags()
-	a.parseEnvVariables()
+	defaultConfig := GetDefaultAgentConfig()
+	a.merge(&defaultConfig)
+
+	af := agentConfigFlags{}
+	af.define()
+
+	a.getConfigFileParam(&af)
+
 	a.overrideFromLocalFileIfExists()
-	a.overrideFromDefault()
+
+	a.parseFlags(&af)
+	a.parseEnvVariables()
+
 	a.checkAndCorrectServerAddress()
 }
 
-func (a *AgentConfig) parseFlags() {
-	flag.StringVar(&a.ServerAddress, "a", "", "server address in format host:port")
-	flag.IntVar(&a.ReportInterval, "r", 0, "metrics report interval in seconds")
-	flag.IntVar(&a.PollInterval, "p", 0, "metrics poll interval in seconds")
-	flag.StringVar(&a.LogLevel, "log", "", "logging level")
-	flag.StringVar(&a.Environment, "e", "", "agent environment")
-	flag.StringVar(&a.HMACKey, "k", "", "HMAC key to calculate hash of request")
-	flag.IntVar(&a.RequestRateLimit, "l", 0, "send metrics request rate limit")
-	flag.StringVar(&a.CryptoKey, "crypto-key", "", "public key path to encode requests")
-	flag.StringVar(&a.ConfigFile, "c", "", "path to config file")
-	flag.StringVar(&a.ConfigFile, "config", "", "path to config file")
+func (a *AgentConfig) getConfigFileParam(af *agentConfigFlags) {
 	flag.Parse()
+	flag.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "c":
+			a.ConfigFile = *af.configFile
+		case "config":
+			a.ConfigFile = *af.configFileLong
+		}
+	})
+	envConfigFile := os.Getenv("CONFIG")
+	if envConfigFile != "" {
+		a.ConfigFile = envConfigFile
+	}
+}
+
+func (a *AgentConfig) parseFlags(af *agentConfigFlags) {
+	flag.Parse()
+	flag.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "a":
+			a.ServerAddress = *af.serverAddress
+		case "log":
+			a.LogLevel = *af.logLevel
+		case "e":
+			a.Environment = *af.environment
+		case "r":
+			a.ReportInterval = *af.reportInterval
+		case "p":
+			a.PollInterval = *af.pollInterval
+		case "k":
+			a.HMACKey = *af.fHMACKey
+		case "l":
+			a.RequestRateLimit = *af.requestRateLimit
+		case "crypto-key":
+			a.CryptoKey = *af.cryptoKey
+		}
+	})
 }
 
 func (a *AgentConfig) parseEnvVariables() {
@@ -137,7 +252,7 @@ func (a *AgentConfig) overrideFromLocalFileIfExists() {
 	}
 	defer file.Close()
 
-	var configFromFile AgentConfig
+	configFromFile := GetDefaultAgentConfig()
 	decoder := json.NewDecoder(file)
 	err = decoder.Decode(&configFromFile)
 	if err != nil {
@@ -145,12 +260,6 @@ func (a *AgentConfig) overrideFromLocalFileIfExists() {
 		return
 	}
 
-	utils.MergeStructs(a, &configFromFile)
+	a.merge(&configFromFile)
 	fmt.Printf("successfully loaded config file %q\n", a.ConfigFile)
-}
-
-// overrideFromDefault overrides parameters which were not set by flags or env variables
-func (a *AgentConfig) overrideFromDefault() {
-	defaultConfig := GetDefaultAgentConfig()
-	utils.MergeStructs(a, &defaultConfig)
 }
