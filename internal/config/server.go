@@ -70,7 +70,7 @@ func (s *ServerConfig) merge(other *ServerConfig) {
 	if other.Environment != "" && other.Environment != s.Environment {
 		s.Environment = other.Environment
 	}
-	if other.StoreInterval != 0 && other.StoreInterval != s.StoreInterval {
+	if other.StoreInterval != s.StoreInterval {
 		s.StoreInterval = other.StoreInterval
 	}
 	if other.StorePath != "" && other.StorePath != s.StorePath {
@@ -91,13 +91,13 @@ func (s *ServerConfig) merge(other *ServerConfig) {
 	if other.AuditURL != "" && other.AuditURL != s.AuditURL {
 		s.AuditURL = other.AuditURL
 	}
-	if other.ProfileEnabled != false && other.ProfileEnabled != s.ProfileEnabled {
+	if other.ProfileEnabled != s.ProfileEnabled {
 		s.ProfileEnabled = other.ProfileEnabled
 	}
 	if other.CryptoKey != "" && other.CryptoKey != s.CryptoKey {
 		s.CryptoKey = other.CryptoKey
 	}
-	if other.ShutdownTimeout != 30*time.Second && other.ShutdownTimeout != s.ShutdownTimeout {
+	if other.ShutdownTimeout != s.ShutdownTimeout {
 		s.ShutdownTimeout = other.ShutdownTimeout
 	}
 }
