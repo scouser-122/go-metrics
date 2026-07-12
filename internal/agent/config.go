@@ -49,7 +49,7 @@ func (a *AgentConfig) merge(other *AgentConfig) {
 			a.RuntimeMetricNames = other.RuntimeMetricNames
 		}
 	}
-	if other.ServerAddress != a.ServerAddress {
+	if other.ServerAddress != "" && other.ServerAddress != a.ServerAddress {
 		a.ServerAddress = other.ServerAddress
 	}
 	if other.ReportInterval != a.ReportInterval {
@@ -58,19 +58,19 @@ func (a *AgentConfig) merge(other *AgentConfig) {
 	if other.PollInterval != a.PollInterval {
 		a.PollInterval = other.PollInterval
 	}
-	if other.LogLevel != a.LogLevel {
+	if other.LogLevel != "" && other.LogLevel != a.LogLevel {
 		a.LogLevel = other.LogLevel
 	}
-	if other.Environment != a.Environment {
+	if other.Environment != "" && other.Environment != a.Environment {
 		a.Environment = other.Environment
 	}
-	if other.HMACKey != a.HMACKey {
+	if other.HMACKey != "" && other.HMACKey != a.HMACKey {
 		a.HMACKey = other.HMACKey
 	}
 	if other.RequestRateLimit != a.RequestRateLimit {
 		a.RequestRateLimit = other.RequestRateLimit
 	}
-	if other.CryptoKey != a.CryptoKey {
+	if other.CryptoKey != "" && other.CryptoKey != a.CryptoKey {
 		a.CryptoKey = other.CryptoKey
 	}
 	if other.RetryConfig.MaxAttempts != a.RetryConfig.MaxAttempts {
