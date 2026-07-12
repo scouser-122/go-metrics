@@ -119,7 +119,7 @@ func (h *UpdateHandler) processUpdateJSONRequest(res http.ResponseWriter, req *h
 	if req.Header.Get("X-Body-Encrypted") != "" {
 		bodyBuf, err = h.cryptoService.DecryptRequestBody(bodyBuf)
 		if err != nil {
-			logger.Sugar.Errorf("cannot decrypt body", err)
+			logger.Sugar.Errorf("cannot decrypt body: %v", err)
 			res.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -184,7 +184,7 @@ func (h *UpdateHandler) processUpdateJSONArrayRequest(res http.ResponseWriter, r
 	if req.Header.Get("X-Body-Encrypted") != "" {
 		bodyBuf, err = h.cryptoService.DecryptRequestBody(bodyBuf)
 		if err != nil {
-			logger.Sugar.Errorf("cannot decrypt body", err)
+			logger.Sugar.Errorf("cannot decrypt body: %v", err)
 			res.WriteHeader(http.StatusInternalServerError)
 			return
 		}
