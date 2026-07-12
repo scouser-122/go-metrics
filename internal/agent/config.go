@@ -33,19 +33,21 @@ type AgentConfig struct {
 }
 
 func (a *AgentConfig) merge(other *AgentConfig) {
-	namesEqual := true
-	if len(other.RuntimeMetricNames) != len(a.RuntimeMetricNames) {
-		namesEqual = false
-	} else {
-		for _, n := range other.RuntimeMetricNames {
-			if slices.Index(a.RuntimeMetricNames, n) == -1 {
-				namesEqual = false
-				break
+	if len(a.RuntimeMetricNames) > 0 {
+		namesEqual := true
+		if len(other.RuntimeMetricNames) != len(a.RuntimeMetricNames) {
+			namesEqual = false
+		} else {
+			for _, n := range other.RuntimeMetricNames {
+				if slices.Index(a.RuntimeMetricNames, n) == -1 {
+					namesEqual = false
+					break
+				}
 			}
 		}
-	}
-	if !namesEqual {
-		a.RuntimeMetricNames = other.RuntimeMetricNames
+		if !namesEqual {
+			a.RuntimeMetricNames = other.RuntimeMetricNames
+		}
 	}
 	if other.ServerAddress != a.ServerAddress {
 		a.ServerAddress = other.ServerAddress
