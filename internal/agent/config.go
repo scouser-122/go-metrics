@@ -33,7 +33,7 @@ type AgentConfig struct {
 }
 
 func (a *AgentConfig) merge(other *AgentConfig) {
-	if len(a.RuntimeMetricNames) > 0 {
+	if len(other.RuntimeMetricNames) > 0 {
 		namesEqual := true
 		if len(other.RuntimeMetricNames) != len(a.RuntimeMetricNames) {
 			namesEqual = false
