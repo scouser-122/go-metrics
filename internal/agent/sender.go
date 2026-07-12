@@ -97,27 +97,31 @@ func (sender *MetricsSender) SendMetricsContinuousWorker(
 		wg.Add(1)
 		go func() {
 			prevTime := time.Now()
-			time.Sleep(interval)
-			for data := range dataCh {
-				logger.Sugar.Infof("start sending metrics in worker %d", w)
-				sender.SendMetrics(data.metrics)
-				if len(dataCh) == 0 {
-					// stop process if stop signal received
-					select {
-					case <-stopCh:
-						logger.Sugar.Infof("stop sending metrics in worker %d", w)
-						wg.Done()
-						return
-					default:
+			wait := true
+			for {
+				select {
+				case <-stopCh:
+					for data := range dataCh {
+						logger.Sugar.Infof("start sending metrics in worker %d", w)
+						sender.SendMetrics(data.metrics)
 					}
-
-					// wait for next report interval
-					timeDiff := time.Since(prevTime)
-					if timeDiff < interval {
-						time.Sleep(interval - timeDiff)
+					logger.Sugar.Infof("stop sending metrics in worker %d", w)
+					wg.Done()
+					return
+				default:
+					if wait && time.Since(prevTime) < interval {
+						break
+					}
+					wait = false
+					data := <-dataCh
+					logger.Sugar.Infof("start sending metrics in worker %d", w)
+					sender.SendMetrics(data.metrics)
+					if len(dataCh) == 0 {
+						prevTime = time.Now()
+						wait = true
+						logger.Sugar.Infof("sleep worker %d for %.1f seconds", w, interval.Seconds())
 					}
 				}
-				prevTime = time.Now()
 			}
 		}()
 	}

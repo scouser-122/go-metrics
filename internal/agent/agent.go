@@ -57,7 +57,5 @@ func (agent *MetricsAgent) CollectAndSendMetricsInLoop() {
 
 	wg.Wait()
 
-	close(dataChannel)
-
 	logger.Sugar.Info("finish collecting and sending metrics. workers stopped")
 }

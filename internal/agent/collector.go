@@ -39,17 +39,17 @@ func (collector *MetricsCollector) CollectMetricsWorker(
 	ticker := time.NewTicker(time.Duration(collector.Config.PollInterval) * time.Second)
 	defer ticker.Stop()
 
-	for range ticker.C {
+	for {
 		select {
 		case <-stopCh:
 			logger.Sugar.Info("stop collecting metrics")
+			close(dataCh)
 			return
-		default:
+		case <-ticker.C:
 			go collector.CollectRuntimeMetrics(dataCh)
 			go collector.CollectGopsutilMetrics(dataCh)
 		}
 	}
-
 }
 
 // CollectRuntimeMetrics collects Go runtime memory statistics and sends them to the data channel.
