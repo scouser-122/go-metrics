@@ -58,6 +58,9 @@ type ServerConfig struct {
 
 	// ShutdownTimeout timeout which server will wait to finist processing requests before shutdown
 	ShutdownTimeout time.Duration `env:"SHUTDOW_TIMEOUT"`
+
+	// TrustedSubnet specifies range of trusted IP-s to make requests to this server
+	TrustedSubnet string `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
 }
 
 func (s *ServerConfig) merge(other *ServerConfig) {
@@ -100,6 +103,9 @@ func (s *ServerConfig) merge(other *ServerConfig) {
 	if other.ShutdownTimeout != s.ShutdownTimeout {
 		s.ShutdownTimeout = other.ShutdownTimeout
 	}
+	if other.TrustedSubnet != "" && other.TrustedSubnet != s.TrustedSubnet {
+		s.TrustedSubnet = other.TrustedSubnet
+	}
 }
 
 // DefaultServerConfig returns a ServerConfig instance with default values.
@@ -118,6 +124,7 @@ func DefaultServerConfig() ServerConfig {
 		ProfileEnabled:   false,
 		ConfigFile:       "",
 		ShutdownTimeout:  30 * time.Second,
+		TrustedSubnet:    "",
 	}
 }
 
@@ -136,6 +143,7 @@ type serverConfigFlags struct {
 	auditURL          *string
 	profileEnabled    *bool
 	cryptoKey         *string
+	trustedSubnet     *string
 }
 
 func (sf *serverConfigFlags) define() {
@@ -153,6 +161,7 @@ func (sf *serverConfigFlags) define() {
 	sf.auditURL = flag.String("audit-url", "", "URL of service where audit events should be sent to")
 	sf.profileEnabled = flag.Bool("profile-enabled", false, "flag to start profiing server on port 6060")
 	sf.cryptoKey = flag.String("crypto-key", "", "private key path to decode requests")
+	sf.trustedSubnet = flag.String("t", "", "range of trusted IP-s to make requests to this server")
 }
 
 // Load sequentually loads config from different sources
@@ -215,6 +224,8 @@ func (s *ServerConfig) parseFlags(sf *serverConfigFlags) {
 			s.ProfileEnabled = *sf.profileEnabled
 		case "crypto-key":
 			s.CryptoKey = *sf.cryptoKey
+		case "t":
+			s.TrustedSubnet = *sf.trustedSubnet
 		}
 	})
 }

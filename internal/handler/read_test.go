@@ -46,7 +46,7 @@ func TestListHandler(t *testing.T) {
 	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
 	for _, test := range listTests {
 		t.Run(test.name, func(t *testing.T) {
-			r := CreateChiRouterWithHandlers(&handlers)
+			r := CreateChiRouterWithHandlers(&handlers, &serverConfig)
 
 			request := httptest.NewRequest(test.request.method, test.request.path, nil)
 			// создаём новый Recorder
@@ -87,7 +87,7 @@ func ExampleReadHandler_ListHandler() {
 	metricsService.SaveMetricsModel(context.Background(), generateTestMetrics(10))
 
 	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
-	r := CreateChiRouterWithHandlers(&handlers)
+	r := CreateChiRouterWithHandlers(&handlers, &serverConfig)
 
 	// call handler
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -167,7 +167,7 @@ func TestValueHandler(t *testing.T) {
 	handlers := InitializeHandlers(&metricsService, &cryptoService, nil)
 	for _, test := range valueTests {
 		t.Run(test.name, func(t *testing.T) {
-			r := CreateChiRouterWithHandlers(&handlers)
+			r := CreateChiRouterWithHandlers(&handlers, &serverConfig)
 
 			request := httptest.NewRequest(test.request.method, test.request.path, nil)
 			// создаём новый Recorder
@@ -210,7 +210,7 @@ func ExampleReadHandler_ValueHandler() {
 	})
 
 	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
-	r := CreateChiRouterWithHandlers(&handlers)
+	r := CreateChiRouterWithHandlers(&handlers, &serverConfig)
 
 	// call handler
 	request := httptest.NewRequest(http.MethodGet, "/value/counter/TestCounter", nil)
@@ -331,7 +331,7 @@ func TestValueJSONHandler(t *testing.T) {
 			metricsService.Storage.SaveMetrics(context.Background(), test.metrics)
 			handlers := InitializeHandlers(metricsService, &cryptoService, nil)
 
-			r := CreateChiRouterWithHandlers(&handlers)
+			r := CreateChiRouterWithHandlers(&handlers, &serverConfig)
 
 			var bodyReader io.Reader
 			if test.request.body != "" {
@@ -380,7 +380,7 @@ func ExampleReadHandler_ValueJSONHandler() {
 	})
 
 	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
-	r := CreateChiRouterWithHandlers(&handlers)
+	r := CreateChiRouterWithHandlers(&handlers, &serverConfig)
 
 	// call handler
 	body := `{"id":"TestCounter","type":"counter"}`

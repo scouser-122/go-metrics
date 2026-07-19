@@ -25,7 +25,7 @@ func NewServer(config *config.ServerConfig, handlers []Handler) *Server {
 		config: config,
 	}
 
-	AddHandlersForRouter(r, &handlers)
+	AddHandlersForRouter(r, &handlers, config)
 
 	s.httpServer = &http.Server{
 		Addr:    s.config.RunAddr,

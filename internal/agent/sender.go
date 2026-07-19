@@ -13,6 +13,8 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
+	"log"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -27,18 +29,20 @@ import (
 
 // MetricsSender handles sending collected metrics to the metrics server.
 type MetricsSender struct {
-	Config *AgentConfig
-	writes chan WriteRequest
-	reads  chan ReadRequest
-	pubKey *rsa.PublicKey
+	Config  *AgentConfig
+	writes  chan WriteRequest
+	reads   chan ReadRequest
+	pubKey  *rsa.PublicKey
+	localIP string
 }
 
 // NewSender creates a new MetricsSender instance with the provided configuration.
 func NewSender(config *AgentConfig) MetricsSender {
 	return MetricsSender{
-		Config: config,
-		writes: make(chan WriteRequest),
-		reads:  make(chan ReadRequest),
+		Config:  config,
+		writes:  make(chan WriteRequest),
+		reads:   make(chan ReadRequest),
+		localIP: getLocalIPAddress(),
 	}
 }
 
@@ -171,7 +175,10 @@ func (sender *MetricsSender) SendMetric(client *resty.Client, metric *models.Met
 		metric.ID,
 		metricValue,
 	)
-	resp, err := client.R().SetHeader("Content-Type", "text/plain").Post(url)
+	resp, err := client.R().
+		SetHeader("Content-Type", "text/plain").
+		SetHeader("X-Real-IP", sender.localIP).
+		Post(url)
 	if err != nil {
 		return "", err
 	}
@@ -209,6 +216,7 @@ func (sender *MetricsSender) SendMetricJSON(client *resty.Client, metric *models
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("Accept-Encoding", "gzip").
+		SetHeader("X-Real-IP", sender.localIP).
 		SetBody(&buf).
 		SetResult(&savedMetric)
 	if sender.Config.HMACKey != "" {
@@ -258,6 +266,7 @@ func (sender *MetricsSender) SendMetricsJSON(client *resty.Client, metrics []mod
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("Accept-Encoding", "gzip").
+		SetHeader("X-Real-IP", sender.localIP).
 		SetBody(&buf).
 		SetResult(&response)
 	if sender.Config.HMACKey != "" {
@@ -367,4 +376,17 @@ func (sender *MetricsSender) encryptBytes(message []byte) ([]byte, error) {
 	}
 
 	return encryptedData, nil
+}
+
+func getLocalIPAddress() string {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	fmt.Println("Local IP:", localAddr.IP)
+
+	return localAddr.IP.String()
 }
