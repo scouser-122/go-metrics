@@ -386,7 +386,7 @@ func getLocalIPAddress() string {
 	defer conn.Close()
 
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	fmt.Println("Local IP:", localAddr.IP)
+	logger.Sugar.Info("Local IP:", localAddr.IP)
 
 	return localAddr.IP.String()
 }
