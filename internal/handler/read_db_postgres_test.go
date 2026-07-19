@@ -184,7 +184,7 @@ func BenchmarkListHandlerDBPostgres(b *testing.B) {
 		}
 		mockDB.PgxPoolIface = mock
 		mockDB.MockDBCalls(mockDB)
-		db := db.NewPgxMockDB(serverConfig, mock)
+		db := db.NewPgxMockDB(&serverConfig, mock)
 
 		eventBroker := memory.NewBroker()
 		brokerContext, cancel := context.WithCancel(context.Background())

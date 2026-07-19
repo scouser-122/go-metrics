@@ -29,15 +29,26 @@ func NewCollector(config *AgentConfig) MetricsCollector {
 }
 
 // CollectMetricsWorker runs a worker that periodically collects metrics at configured intervals.
-func (collector *MetricsCollector) CollectMetricsWorker(wg *sync.WaitGroup, dataCh chan<- CollectedData) {
+func (collector *MetricsCollector) CollectMetricsWorker(
+	wg *sync.WaitGroup,
+	dataCh chan<- CollectedData,
+	stopCh chan struct{},
+) {
 	defer wg.Done()
 
 	ticker := time.NewTicker(time.Duration(collector.Config.PollInterval) * time.Second)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		go collector.CollectRuntimeMetrics(dataCh)
-		go collector.CollectGopsutilMetrics(dataCh)
+	for {
+		select {
+		case <-stopCh:
+			logger.Sugar.Info("stop collecting metrics")
+			close(dataCh)
+			return
+		case <-ticker.C:
+			go collector.CollectRuntimeMetrics(dataCh)
+			go collector.CollectGopsutilMetrics(dataCh)
+		}
 	}
 }
 

@@ -7,10 +7,17 @@ import (
 	"github.com/scouser-122/go-metrics/internal/logger"
 )
 
-// CreateChiRouter creates and configures a chi router with the provided handlers.
+// CreateChiRouterWithHandlers creates and configures a chi router with the provided handlers.
 // It applies GzipMiddleware and RequestLogger to all routes and sets up 404/405 handlers.
-func CreateChiRouter(handlers *[]Handler) *chi.Mux {
+func CreateChiRouterWithHandlers(handlers *[]Handler) *chi.Mux {
 	r := chi.NewRouter()
+	AddHandlersForRouter(r, handlers)
+	return r
+}
+
+// AddHandlersForRouter  configures a chi router with the provided handlers.
+// It applies GzipMiddleware and RequestLogger to all routes and sets up 404/405 handlers.
+func AddHandlersForRouter(r *chi.Mux, handlers *[]Handler) {
 	for _, h := range *handlers {
 		switch h.Method {
 		case http.MethodGet:
@@ -29,5 +36,4 @@ func CreateChiRouter(handlers *[]Handler) *chi.Mux {
 		w.Header().Set("content-type", "text/plain")
 		w.WriteHeader(404)
 	})
-	return r
 }

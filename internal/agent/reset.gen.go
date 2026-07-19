@@ -4,7 +4,7 @@ package agent
 
 // Reset reset fields AgentConfig to their initial values.
 func (a *AgentConfig) Reset() {
-	a.runtimeMetricNames = a.runtimeMetricNames[:0]
+	a.RuntimeMetricNames = a.RuntimeMetricNames[:0]
 	a.ServerAddress = ""
 	a.ReportInterval = 0
 	a.PollInterval = 0

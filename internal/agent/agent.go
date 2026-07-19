@@ -1,7 +1,10 @@
 package agent
 
 import (
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 
 	"github.com/scouser-122/go-metrics/internal/logger"
 )
@@ -21,6 +24,7 @@ func NewAgent(config *AgentConfig) *MetricsAgent {
 		collector: NewCollector(config),
 		sender:    NewSender(config),
 	}
+	agent.sender.LoadPublicKeyIfExists()
 	return &agent
 }
 
@@ -34,14 +38,24 @@ func (agent *MetricsAgent) CollectAndSendMetricsInLoop() {
 	var wg sync.WaitGroup
 
 	wg.Add(1)
-	go agent.sender.SendMetricsContinuousWorker(&wg, dataChannel)
+	stopChanSend := make(chan struct{})
+	go agent.sender.SendMetricsContinuousWorker(&wg, dataChannel, stopChanSend)
 
-	wg.Add(1)
-	go agent.collector.CollectMetricsWorker(&wg, dataChannel)
+	stopChanCollect := make(chan struct{})
+	go agent.collector.CollectMetricsWorker(&wg, dataChannel, stopChanCollect)
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
+	go func() {
+		sig := <-sigChan
+		logger.Sugar.Infof("shutdown signal received: %v. stopping workers...", sig)
+
+		close(stopChanCollect)
+		close(stopChanSend)
+	}()
 
 	wg.Wait()
 
-	close(dataChannel)
-
-	logger.Sugar.Info("finish collecting metrics")
+	logger.Sugar.Info("finish collecting and sending metrics. workers stopped")
 }

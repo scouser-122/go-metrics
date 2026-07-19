@@ -128,8 +128,11 @@ func (service *MetricsService) SaveMetricModel(ctx context.Context, metric *mode
 		}
 	}
 	result, err := service.Storage.UpdateOrCreateMetric(ctx, *metric)
+	if err != nil {
+		return result, err
+	}
 	service.logMetricsReceiveEventToAudit(ctx, []models.Metrics{result})
-	return result, err
+	return result, nil
 }
 
 // SaveMetricsModel saves multiple metrics and returns the count of successfully saved metrics.
@@ -157,8 +160,11 @@ func (service *MetricsService) SaveMetricsModel(ctx context.Context, metrics []m
 	}
 	var err error
 	result, err = service.Storage.UpdateOrCreateMetrics(ctx, metrics)
+	if err != nil {
+		return 0, err
+	}
 	service.logMetricsReceiveEventToAudit(ctx, metrics)
-	return result, err
+	return result, nil
 }
 
 // GetAllMetrics retrieves all stored metrics.

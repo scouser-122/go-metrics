@@ -1,0 +1,13 @@
+{
+    "address": "localhost:45057",
+    "poll_interval": 2,
+    "report_interval": 5,
+    "rate_limit": 2,
+    "key": "secret_key",
+    "retry_config": {
+        "max_attempts": 2,
+        "initial_backoff": 500,
+        "backoff_multiplier": 1000
+    },
+    "crypto_key": "../../keys/public_key.pem"
+}

@@ -4,6 +4,9 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/botchris/go-pubsub/provider/memory"
 	"github.com/scouser-122/go-metrics/internal/config"
@@ -22,10 +25,8 @@ var (
 )
 
 func main() {
-
-	serverConfig := config.DefaultServerConfig()
-	parseFlags(&serverConfig)
-	parseEnvVariables(&serverConfig)
+	serverConfig := config.ServerConfig{}
+	serverConfig.Load()
 	if err := logger.Initialize(serverConfig.LogLevel, serverConfig.Environment); err != nil {
 		panic(err)
 	}
@@ -49,10 +50,9 @@ func main() {
 	cryptoService := service.CryptoService{
 		ServerConfig: &serverConfig,
 	}
+	cryptoService.LoadPrivateKeyIfExists()
 
 	handlers := handler.InitializeHandlers(metricsService, &cryptoService, &database)
-
-	r := handler.CreateChiRouter(&handlers)
 
 	if serverConfig.ProfileEnabled {
 		go func() {
@@ -60,8 +60,19 @@ func main() {
 		}()
 	}
 
-	logger.Sugar.Infof("starting server on http://%s", serverConfig.RunAddr)
-	logger.Sugar.Fatal(http.ListenAndServe(serverConfig.RunAddr, r))
+	server := handler.NewServer(&serverConfig, handlers)
+	go func() {
+		if err := server.Start(); err != nil && err != http.ErrServerClosed {
+			logger.Sugar.Fatal("server error: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	<-quit
+
+	server.Shutdown()
+	logger.Sugar.Info("server gracefully stopped")
 }
 
 func printBuildVersion() {

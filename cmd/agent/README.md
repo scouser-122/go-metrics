@@ -5,6 +5,12 @@
 Пример сборки и запуска из командной строки:
 
 ```bash
+go build -o agent && ./agent -config="./config.json"
+```
+
+C флагами версии:
+
+```bash
 go build -ldflags "-X main.buildVersion=v1.0.0 -X main.buildDate=$(date -u '+%Y-%m-%d_%H:%M:%S') -X main.buildCommit=$(git rev-parse HEAD)" -o agent && \
-./agent -a localhost:45057 -r 5 -p 2 -log info -e dev -k="secret_key"
+./agent -config="./config.json"
 ```
