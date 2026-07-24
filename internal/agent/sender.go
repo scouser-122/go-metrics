@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
@@ -14,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -21,10 +23,14 @@ import (
 	"sync"
 	"time"
 
+	pb "github.com/scouser-122/go-metrics/internal/proto"
+
 	"github.com/go-resty/resty/v2"
 	"github.com/scouser-122/go-metrics/internal/config"
 	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // MetricsSender handles sending collected metrics to the metrics server.
@@ -119,7 +125,11 @@ func (sender *MetricsSender) SendMetricsContinuousWorker(
 					wait = false
 					data := <-dataCh
 					logger.Sugar.Infof("start sending metrics in worker %d", w)
-					sender.SendMetrics(data.metrics)
+					if sender.Config.GrpcServerAddress != "" {
+						sender.SendGrpcMetrics(data.metrics)
+					} else {
+						sender.SendMetrics(data.metrics)
+					}
 					if len(dataCh) == 0 {
 						prevTime = time.Now()
 						wait = true
@@ -346,6 +356,25 @@ func (sender *MetricsSender) LoadPublicKeyIfExists() {
 	logger.Sugar.Info("successfully loaded public key")
 }
 
+func (sender *MetricsSender) SendGrpcMetrics(metrics []models.Metrics) {
+	ctx := context.Background()
+
+	conn, err := grpc.NewClient(sender.Config.GrpcServerAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		slog.Error("error connecting to gRPC server", "error", err)
+		return
+	}
+	defer conn.Close()
+
+	c := pb.NewMetricsClient(conn)
+	_, err = c.UpdateMetrics(ctx, pb.UpdateMetricsRequest_builder{
+		Metrics: metricsToPbMetrics(metrics),
+	}.Build())
+	if err != nil {
+		logger.Sugar.Errorf("error sending metrics: %s", err)
+	}
+}
+
 func (sender *MetricsSender) encryptBytes(message []byte) ([]byte, error) {
 	// Calculate maximum message size per chunk
 	// For RSA OAEP with SHA-256: keySize/8 - 2*hashSize - 2
@@ -389,4 +418,27 @@ func getLocalIPAddress() string {
 	logger.Sugar.Info("Local IP:", localAddr.IP)
 
 	return localAddr.IP.String()
+}
+
+func metricsToPbMetrics(metrics []models.Metrics) []*pb.Metric {
+	result := []*pb.Metric{}
+	for _, m := range metrics {
+		result = append(result, metricToPbMetric(m))
+	}
+	return result
+}
+
+func metricToPbMetric(m models.Metrics) *pb.Metric {
+	result := pb.Metric_builder{
+		Id: m.ID,
+	}
+	switch m.MType {
+	case models.Gauge:
+		result.Type = pb.Metric_GAUGE
+		result.Value = *m.Value
+	case models.Counter:
+		result.Type = pb.Metric_COUNTER
+		result.Delta = *m.Delta
+	}
+	return result.Build()
 }

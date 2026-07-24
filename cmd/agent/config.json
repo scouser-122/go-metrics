@@ -9,5 +9,6 @@
         "initial_backoff": 500,
         "backoff_multiplier": 1000
     },
-    "crypto_key": "../../keys/public_key.pem"
+    "crypto_key": "../../keys/public_key.pem",
+    "grpc_server_address": ":3200"
 }

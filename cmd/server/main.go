@@ -67,6 +67,9 @@ func main() {
 		}
 	}()
 
+	grpcServer := handler.NewGrpcServer(&serverConfig)
+	grpcServer.Start(metricsService)
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	<-quit

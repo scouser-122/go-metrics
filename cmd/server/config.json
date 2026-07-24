@@ -10,5 +10,6 @@
     "audit_url": "http://localhost:8081/audit/metrics",
     "profile_enabled": false,
     "crypto_key": "../../keys/private_key.pem",
-    "trusted_subnet": "192.168.0.0/24"
+    "trusted_subnet": "192.168.0.0/24",
+    "grpc_port": "3200"
 }
