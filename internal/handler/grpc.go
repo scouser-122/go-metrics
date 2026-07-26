@@ -87,7 +87,7 @@ func (g *GrpcServer) Start(metricsService *service.MetricsService) {
 		logger.Sugar.Error("gRPC listener initialization error", "error", err)
 		os.Exit(1)
 	}
-	g.server = grpc.NewServer()
+	g.server = grpc.NewServer(grpc.UnaryInterceptor(TrustedGrpcMiddleware(g.config)))
 
 	// Регистрируем сервис
 	pb.RegisterMetricsServer(g.server, NewMetricsServer(metricsService))

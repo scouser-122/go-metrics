@@ -1,11 +1,16 @@
 package handler
 
 import (
+	"context"
 	"net"
 	"net/http"
 
 	"github.com/scouser-122/go-metrics/internal/config"
 	"github.com/scouser-122/go-metrics/internal/logger"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 func TrustedMiddleware(h http.HandlerFunc, config *config.ServerConfig) http.HandlerFunc {
@@ -18,7 +23,8 @@ func TrustedMiddleware(h http.HandlerFunc, config *config.ServerConfig) http.Han
 		trustedSubnet = subnet
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
-		if trustedSubnet != nil && !isTrustedIP(r, trustedSubnet) {
+		realIP := r.Header.Get("X-Real-IP")
+		if trustedSubnet != nil && !isTrustedIP(realIP, trustedSubnet) {
 			http.Error(w, "Forbidden IP", http.StatusForbidden)
 			return
 		}
@@ -26,8 +32,34 @@ func TrustedMiddleware(h http.HandlerFunc, config *config.ServerConfig) http.Han
 	}
 }
 
-func isTrustedIP(r *http.Request, trustedSubnet *net.IPNet) bool {
-	realIP := r.Header.Get("X-Real-IP")
+func TrustedGrpcMiddleware(config *config.ServerConfig) grpc.UnaryServerInterceptor {
+	var trustedSubnet *net.IPNet
+	if config.TrustedSubnet != "" {
+		_, subnet, err := net.ParseCIDR(config.TrustedSubnet)
+		if err != nil {
+			panic(err)
+		}
+		trustedSubnet = subnet
+	}
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		var ip string
+		if md, ok := metadata.FromIncomingContext(ctx); ok {
+			values := md.Get("X-Real-IP")
+			if len(values) > 0 {
+				ip = values[0]
+			}
+		}
+		if len(ip) == 0 {
+			return nil, status.Error(codes.PermissionDenied, "missing IP")
+		}
+		if trustedSubnet != nil && !isTrustedIP(ip, trustedSubnet) {
+			return nil, status.Error(codes.PermissionDenied, "Forbidden IP")
+		}
+		return handler(ctx, req)
+	}
+}
+
+func isTrustedIP(realIP string, trustedSubnet *net.IPNet) bool {
 	if realIP == "" {
 		logger.Sugar.Errorf("X-Real-IP absent")
 		return false

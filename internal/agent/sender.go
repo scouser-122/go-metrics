@@ -31,6 +31,7 @@ import (
 	models "github.com/scouser-122/go-metrics/internal/model"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 // MetricsSender handles sending collected metrics to the metrics server.
@@ -113,7 +114,11 @@ func (sender *MetricsSender) SendMetricsContinuousWorker(
 				case <-stopCh:
 					for data := range dataCh {
 						logger.Sugar.Infof("start sending metrics in worker %d", w)
-						sender.SendMetrics(data.metrics)
+						if sender.Config.GrpcServerAddress != "" {
+							sender.SendGrpcMetrics(data.metrics)
+						} else {
+							sender.SendMetrics(data.metrics)
+						}
 					}
 					logger.Sugar.Infof("stop sending metrics in worker %d", w)
 					wg.Done()
@@ -367,6 +372,8 @@ func (sender *MetricsSender) SendGrpcMetrics(metrics []models.Metrics) {
 	defer conn.Close()
 
 	c := pb.NewMetricsClient(conn)
+	md := metadata.New(map[string]string{"X-Real-IP": sender.localIP})
+	ctx = metadata.NewOutgoingContext(ctx, md)
 	_, err = c.UpdateMetrics(ctx, pb.UpdateMetricsRequest_builder{
 		Metrics: metricsToPbMetrics(metrics),
 	}.Build())
