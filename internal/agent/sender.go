@@ -375,7 +375,7 @@ func (sender *MetricsSender) SendGrpcMetrics(metrics []models.Metrics) {
 	md := metadata.New(map[string]string{"X-Real-IP": sender.localIP})
 	ctx = metadata.NewOutgoingContext(ctx, md)
 	_, err = c.UpdateMetrics(ctx, pb.UpdateMetricsRequest_builder{
-		Metrics: metricsToPbMetrics(metrics),
+		Metrics: MetricsToPbMetrics(metrics),
 	}.Build())
 	if err != nil {
 		logger.Sugar.Errorf("error sending metrics: %s", err)
@@ -427,7 +427,7 @@ func getLocalIPAddress() string {
 	return localAddr.IP.String()
 }
 
-func metricsToPbMetrics(metrics []models.Metrics) []*pb.Metric {
+func MetricsToPbMetrics(metrics []models.Metrics) []*pb.Metric {
 	result := []*pb.Metric{}
 	for _, m := range metrics {
 		result = append(result, metricToPbMetric(m))

@@ -87,15 +87,19 @@ func (g *GrpcServer) Start(metricsService *service.MetricsService) {
 		logger.Sugar.Error("gRPC listener initialization error", "error", err)
 		os.Exit(1)
 	}
-	g.server = grpc.NewServer(grpc.UnaryInterceptor(TrustedGrpcMiddleware(g.config)))
 
-	// Регистрируем сервис
+	g.server = grpc.NewServer(grpc.UnaryInterceptor(TrustedGrpcMiddleware(g.config)))
 	pb.RegisterMetricsServer(g.server, NewMetricsServer(metricsService))
 
 	logger.Sugar.Infof("gRPC server started on port: %s", g.config.GrpcPort)
-	// Получение запроса gRpc
 	if err := g.server.Serve(listen); err != nil {
 		logger.Sugar.Error("gRPC server work error", "error", err)
 		os.Exit(1)
+	}
+}
+
+func (g *GrpcServer) Stop() {
+	if g.server != nil {
+		g.server.Stop()
 	}
 }
