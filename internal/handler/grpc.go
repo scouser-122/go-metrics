@@ -46,33 +46,42 @@ func (s *MetricsServer) UpdateMetrics(ctx context.Context, in *pb.UpdateMetricsR
 }
 
 func pbMetricToMetric(pbMetric *pb.Metric) models.Metrics {
-	var metricType string
-	var delta *int64
-	var value *float64
+	var delta int64
+	var value float64
+	result := models.Metrics{
+		ID: pbMetric.GetId(),
+	}
 	switch pbMetric.GetType() {
 	case pb.Metric_GAUGE:
-		metricType = models.Gauge
-		value = Ptr(float64(pbMetric.GetValue()))
+		result.MType = models.Gauge
+		value = pbMetric.GetValue()
+		result.Value = &value
 	case pb.Metric_COUNTER:
-		metricType = models.Counter
-		delta = Ptr(int64(pbMetric.GetDelta()))
+		result.MType = models.Counter
+		delta = pbMetric.GetDelta()
+		result.Delta = &delta
 	}
-	return models.Metrics{
-		ID:    pbMetric.GetId(),
-		MType: metricType,
-		Delta: delta,
-		Value: value,
-	}
+	return result
 }
 
 type GrpcServer struct {
-	config *config.ServerConfig
-	server *grpc.Server
+	config        *config.ServerConfig
+	server        *grpc.Server
+	trustedSubnet *net.IPNet
 }
 
 func NewGrpcServer(config *config.ServerConfig) *GrpcServer {
+	var trustedSubnet *net.IPNet
+	if config.TrustedSubnet != "" {
+		_, subnet, err := net.ParseCIDR(config.TrustedSubnet)
+		if err != nil {
+			panic(err)
+		}
+		trustedSubnet = subnet
+	}
 	return &GrpcServer{
-		config: config,
+		config:        config,
+		trustedSubnet: trustedSubnet,
 	}
 }
 
@@ -88,7 +97,7 @@ func (g *GrpcServer) Start(metricsService *service.MetricsService) {
 		os.Exit(1)
 	}
 
-	g.server = grpc.NewServer(grpc.UnaryInterceptor(TrustedGrpcMiddleware(g.config)))
+	g.server = grpc.NewServer(grpc.UnaryInterceptor(TrustedGrpcMiddleware(g.trustedSubnet)))
 	pb.RegisterMetricsServer(g.server, NewMetricsServer(metricsService))
 
 	logger.Sugar.Infof("gRPC server started on port: %s", g.config.GrpcPort)

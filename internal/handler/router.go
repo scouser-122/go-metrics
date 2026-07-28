@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"net"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -19,8 +20,14 @@ func CreateChiRouterWithHandlers(handlers *[]Handler, config *config.ServerConfi
 // AddHandlersForRouter  configures a chi router with the provided handlers.
 // It applies GzipMiddleware and RequestLogger to all routes and sets up 404/405 handlers.
 func AddHandlersForRouter(r *chi.Mux, handlers *[]Handler, config *config.ServerConfig) {
+	var trustedSubnet *net.IPNet
 	if config.TrustedSubnet != "" {
 		logger.Sugar.Infof("trusted subnet: %s", config.TrustedSubnet)
+		_, subnet, err := net.ParseCIDR(config.TrustedSubnet)
+		if err != nil {
+			panic(err)
+		}
+		trustedSubnet = subnet
 	}
 	for _, h := range *handlers {
 		switch h.Method {
@@ -31,7 +38,7 @@ func AddHandlersForRouter(r *chi.Mux, handlers *[]Handler, config *config.Server
 					GzipMiddleware(
 						RequestLogger(h.HandlerFn),
 					),
-					config,
+					trustedSubnet,
 				),
 			)
 		case http.MethodPost:
@@ -41,7 +48,7 @@ func AddHandlersForRouter(r *chi.Mux, handlers *[]Handler, config *config.Server
 					GzipMiddleware(
 						RequestLogger(h.HandlerFn),
 					),
-					config,
+					trustedSubnet,
 				),
 			)
 		default:

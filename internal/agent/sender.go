@@ -14,7 +14,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"net"
 	"net/http"
@@ -36,20 +35,39 @@ import (
 
 // MetricsSender handles sending collected metrics to the metrics server.
 type MetricsSender struct {
-	Config  *AgentConfig
-	writes  chan WriteRequest
-	reads   chan ReadRequest
-	pubKey  *rsa.PublicKey
-	localIP string
+	Config         *AgentConfig
+	writes         chan WriteRequest
+	reads          chan ReadRequest
+	pubKey         *rsa.PublicKey
+	localIP        string
+	grpcConnection *grpc.ClientConn
+	gprcClient     pb.MetricsClient
 }
 
 // NewSender creates a new MetricsSender instance with the provided configuration.
 func NewSender(config *AgentConfig) MetricsSender {
+	localIP, err := getLocalIPAddress()
+	if err != nil {
+		logger.Sugar.Errorf("can't get local IP address during sender creation: %w. will reset to empty var", err)
+	}
 	return MetricsSender{
 		Config:  config,
 		writes:  make(chan WriteRequest),
 		reads:   make(chan ReadRequest),
-		localIP: getLocalIPAddress(),
+		localIP: localIP,
+	}
+}
+
+// Init initialized sender
+func (sender *MetricsSender) Init() {
+	sender.loadPublicKeyIfExists()
+	sender.createGrpcClientIfNeeded()
+}
+
+// Close closes sender client connections
+func (sender *MetricsSender) Close() {
+	if sender.grpcConnection != nil {
+		sender.grpcConnection.Close()
 	}
 }
 
@@ -114,7 +132,7 @@ func (sender *MetricsSender) SendMetricsContinuousWorker(
 				case <-stopCh:
 					for data := range dataCh {
 						logger.Sugar.Infof("start sending metrics in worker %d", w)
-						if sender.Config.GrpcServerAddress != "" {
+						if sender.gprcClient != nil {
 							sender.SendGrpcMetrics(data.metrics)
 						} else {
 							sender.SendMetrics(data.metrics)
@@ -130,7 +148,7 @@ func (sender *MetricsSender) SendMetricsContinuousWorker(
 					wait = false
 					data := <-dataCh
 					logger.Sugar.Infof("start sending metrics in worker %d", w)
-					if sender.Config.GrpcServerAddress != "" {
+					if sender.gprcClient != nil {
 						sender.SendGrpcMetrics(data.metrics)
 					} else {
 						sender.SendMetrics(data.metrics)
@@ -303,9 +321,9 @@ func (sender *MetricsSender) SendMetricsJSON(client *resty.Client, metrics []mod
 	return response.Message, nil
 }
 
-// LoadPublicKeyIfExists loads public key if it exists in FS,
+// loadPublicKeyIfExists loads public key if it exists in FS,
 // if loaded - will be used to encode requests to server
-func (sender *MetricsSender) LoadPublicKeyIfExists() {
+func (sender *MetricsSender) loadPublicKeyIfExists() {
 	if sender.Config.CryptoKey == "" {
 		logger.Sugar.Info("crypto key path not specified")
 		return
@@ -364,22 +382,29 @@ func (sender *MetricsSender) LoadPublicKeyIfExists() {
 func (sender *MetricsSender) SendGrpcMetrics(metrics []models.Metrics) {
 	ctx := context.Background()
 
-	conn, err := grpc.NewClient(sender.Config.GrpcServerAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		slog.Error("error connecting to gRPC server", "error", err)
-		return
-	}
-	defer conn.Close()
-
-	c := pb.NewMetricsClient(conn)
 	md := metadata.New(map[string]string{"X-Real-IP": sender.localIP})
 	ctx = metadata.NewOutgoingContext(ctx, md)
-	_, err = c.UpdateMetrics(ctx, pb.UpdateMetricsRequest_builder{
+	_, err := sender.gprcClient.UpdateMetrics(ctx, pb.UpdateMetricsRequest_builder{
 		Metrics: MetricsToPbMetrics(metrics),
 	}.Build())
 	if err != nil {
 		logger.Sugar.Errorf("error sending metrics: %s", err)
 	}
+}
+
+func (sender *MetricsSender) createGrpcClientIfNeeded() {
+	if sender.Config.GrpcServerAddress == "" {
+		return
+	}
+
+	var err error
+	sender.grpcConnection, err = grpc.NewClient(sender.Config.GrpcServerAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		slog.Error("error connecting to gRPC server", "error", err)
+		return
+	}
+
+	sender.gprcClient = pb.NewMetricsClient(sender.grpcConnection)
 }
 
 func (sender *MetricsSender) encryptBytes(message []byte) ([]byte, error) {
@@ -414,23 +439,23 @@ func (sender *MetricsSender) encryptBytes(message []byte) ([]byte, error) {
 	return encryptedData, nil
 }
 
-func getLocalIPAddress() string {
+func getLocalIPAddress() (string, error) {
 	conn, err := net.Dial("udp", "8.8.8.8:80")
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
 	defer conn.Close()
 
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	logger.Sugar.Info("Local IP:", localAddr.IP)
 
-	return localAddr.IP.String()
+	return localAddr.IP.String(), nil
 }
 
 func MetricsToPbMetrics(metrics []models.Metrics) []*pb.Metric {
-	result := []*pb.Metric{}
-	for _, m := range metrics {
-		result = append(result, metricToPbMetric(m))
+	result := make([]*pb.Metric, len(metrics))
+	for i := 0; i < len(metrics); i++ {
+		result[i] = metricToPbMetric(metrics[i])
 	}
 	return result
 }
