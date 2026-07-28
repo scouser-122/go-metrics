@@ -19,13 +19,13 @@ func CreateChiRouterWithHandlers(handlers *[]Handler, config *config.ServerConfi
 
 // AddHandlersForRouter  configures a chi router with the provided handlers.
 // It applies GzipMiddleware and RequestLogger to all routes and sets up 404/405 handlers.
-func AddHandlersForRouter(r *chi.Mux, handlers *[]Handler, config *config.ServerConfig) {
+func AddHandlersForRouter(r *chi.Mux, handlers *[]Handler, config *config.ServerConfig) error {
 	var trustedSubnet *net.IPNet
 	if config.TrustedSubnet != "" {
 		logger.Sugar.Infof("trusted subnet: %s", config.TrustedSubnet)
 		_, subnet, err := net.ParseCIDR(config.TrustedSubnet)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		trustedSubnet = subnet
 	}
@@ -63,4 +63,5 @@ func AddHandlersForRouter(r *chi.Mux, handlers *[]Handler, config *config.Server
 		w.Header().Set("content-type", "text/plain")
 		w.WriteHeader(404)
 	})
+	return nil
 }

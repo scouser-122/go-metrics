@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os"
 
 	models "github.com/scouser-122/go-metrics/internal/model"
 	pb "github.com/scouser-122/go-metrics/internal/proto"
@@ -71,30 +70,28 @@ type GrpcServer struct {
 }
 
 func NewGrpcServer(config *config.ServerConfig) *GrpcServer {
-	var trustedSubnet *net.IPNet
-	if config.TrustedSubnet != "" {
-		_, subnet, err := net.ParseCIDR(config.TrustedSubnet)
-		if err != nil {
-			panic(err)
-		}
-		trustedSubnet = subnet
-	}
 	return &GrpcServer{
-		config:        config,
-		trustedSubnet: trustedSubnet,
+		config: config,
 	}
 }
 
-func (g *GrpcServer) Start(metricsService *service.MetricsService) {
+func (g *GrpcServer) Start(metricsService *service.MetricsService) error {
 	if g.config.GrpcPort == "" {
 		logger.Sugar.Info("gRPC port not provided")
-		return
+		return nil
+	}
+
+	if g.config.TrustedSubnet != "" {
+		_, subnet, err := net.ParseCIDR(g.config.TrustedSubnet)
+		if err != nil {
+			return err
+		}
+		g.trustedSubnet = subnet
 	}
 
 	listen, err := net.Listen("tcp", fmt.Sprintf(":%s", g.config.GrpcPort))
 	if err != nil {
-		logger.Sugar.Error("gRPC listener initialization error", "error", err)
-		os.Exit(1)
+		return err
 	}
 
 	g.server = grpc.NewServer(grpc.UnaryInterceptor(TrustedGrpcMiddleware(g.trustedSubnet)))
@@ -102,9 +99,10 @@ func (g *GrpcServer) Start(metricsService *service.MetricsService) {
 
 	logger.Sugar.Infof("gRPC server started on port: %s", g.config.GrpcPort)
 	if err := g.server.Serve(listen); err != nil {
-		logger.Sugar.Error("gRPC server work error", "error", err)
-		os.Exit(1)
+		return err
 	}
+
+	return nil
 }
 
 func (g *GrpcServer) Stop() {

@@ -19,20 +19,23 @@ type Server struct {
 }
 
 // NewServer creates new server entity
-func NewServer(config *config.ServerConfig, handlers []Handler) *Server {
-	r := chi.NewRouter()
-	s := &Server{
+func NewServer(config *config.ServerConfig) *Server {
+	return &Server{
 		config: config,
 	}
+}
 
-	AddHandlersForRouter(r, &handlers, config)
-
+func (s *Server) Init(handlers []Handler) error {
+	r := chi.NewRouter()
+	err := AddHandlersForRouter(r, &handlers, s.config)
+	if err != nil {
+		return err
+	}
 	s.httpServer = &http.Server{
 		Addr:    s.config.RunAddr,
 		Handler: r,
 	}
-
-	return s
+	return nil
 }
 
 // Start starts server

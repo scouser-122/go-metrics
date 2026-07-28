@@ -21,7 +21,7 @@ func Initialize(level string, environment string) error {
 	case "prod":
 		cfg = zap.NewProductionConfig()
 	default:
-		panic(fmt.Errorf("unknown environment for logging config: %s", environment))
+		return fmt.Errorf("unknown environment for logging config: %s", environment)
 	}
 	cfg.Level = lvl
 	zl, err := cfg.Build()

@@ -60,15 +60,22 @@ func main() {
 		}()
 	}
 
-	server := handler.NewServer(&serverConfig, handlers)
+	server := handler.NewServer(&serverConfig)
+	err := server.Init(handlers)
+	if err != nil {
+		panic(err)
+	}
 	go func() {
-		if err := server.Start(); err != nil && err != http.ErrServerClosed {
+		if err = server.Start(); err != nil && err != http.ErrServerClosed {
 			logger.Sugar.Fatal("server error: %v", err)
 		}
 	}()
 
 	grpcServer := handler.NewGrpcServer(&serverConfig)
-	grpcServer.Start(metricsService)
+	err = grpcServer.Start(metricsService)
+	if err != nil {
+		logger.Sugar.Errorf("gRPC server start error: %v", err)
+	}
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
