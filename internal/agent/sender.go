@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
@@ -13,32 +14,60 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
+	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
+	pb "github.com/scouser-122/go-metrics/internal/proto"
+
 	"github.com/go-resty/resty/v2"
 	"github.com/scouser-122/go-metrics/internal/config"
 	"github.com/scouser-122/go-metrics/internal/logger"
 	models "github.com/scouser-122/go-metrics/internal/model"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 // MetricsSender handles sending collected metrics to the metrics server.
 type MetricsSender struct {
-	Config *AgentConfig
-	writes chan WriteRequest
-	reads  chan ReadRequest
-	pubKey *rsa.PublicKey
+	Config         *AgentConfig
+	writes         chan WriteRequest
+	reads          chan ReadRequest
+	pubKey         *rsa.PublicKey
+	localIP        string
+	grpcConnection *grpc.ClientConn
+	gprcClient     pb.MetricsClient
 }
 
 // NewSender creates a new MetricsSender instance with the provided configuration.
 func NewSender(config *AgentConfig) MetricsSender {
+	localIP, err := getLocalIPAddress()
+	if err != nil {
+		logger.Sugar.Errorf("can't get local IP address during sender creation: %w. will reset to empty var", err)
+	}
 	return MetricsSender{
-		Config: config,
-		writes: make(chan WriteRequest),
-		reads:  make(chan ReadRequest),
+		Config:  config,
+		writes:  make(chan WriteRequest),
+		reads:   make(chan ReadRequest),
+		localIP: localIP,
+	}
+}
+
+// Init initialized sender
+func (sender *MetricsSender) Init() {
+	sender.loadPublicKeyIfExists()
+	sender.createGrpcClientIfNeeded()
+}
+
+// Close closes sender client connections
+func (sender *MetricsSender) Close() {
+	if sender.grpcConnection != nil {
+		sender.grpcConnection.Close()
 	}
 }
 
@@ -103,7 +132,11 @@ func (sender *MetricsSender) SendMetricsContinuousWorker(
 				case <-stopCh:
 					for data := range dataCh {
 						logger.Sugar.Infof("start sending metrics in worker %d", w)
-						sender.SendMetrics(data.metrics)
+						if sender.gprcClient != nil {
+							sender.SendGrpcMetrics(data.metrics)
+						} else {
+							sender.SendMetrics(data.metrics)
+						}
 					}
 					logger.Sugar.Infof("stop sending metrics in worker %d", w)
 					wg.Done()
@@ -115,7 +148,11 @@ func (sender *MetricsSender) SendMetricsContinuousWorker(
 					wait = false
 					data := <-dataCh
 					logger.Sugar.Infof("start sending metrics in worker %d", w)
-					sender.SendMetrics(data.metrics)
+					if sender.gprcClient != nil {
+						sender.SendGrpcMetrics(data.metrics)
+					} else {
+						sender.SendMetrics(data.metrics)
+					}
 					if len(dataCh) == 0 {
 						prevTime = time.Now()
 						wait = true
@@ -171,7 +208,10 @@ func (sender *MetricsSender) SendMetric(client *resty.Client, metric *models.Met
 		metric.ID,
 		metricValue,
 	)
-	resp, err := client.R().SetHeader("Content-Type", "text/plain").Post(url)
+	resp, err := client.R().
+		SetHeader("Content-Type", "text/plain").
+		SetHeader("X-Real-IP", sender.localIP).
+		Post(url)
 	if err != nil {
 		return "", err
 	}
@@ -209,6 +249,7 @@ func (sender *MetricsSender) SendMetricJSON(client *resty.Client, metric *models
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("Accept-Encoding", "gzip").
+		SetHeader("X-Real-IP", sender.localIP).
 		SetBody(&buf).
 		SetResult(&savedMetric)
 	if sender.Config.HMACKey != "" {
@@ -258,6 +299,7 @@ func (sender *MetricsSender) SendMetricsJSON(client *resty.Client, metrics []mod
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("Accept-Encoding", "gzip").
+		SetHeader("X-Real-IP", sender.localIP).
 		SetBody(&buf).
 		SetResult(&response)
 	if sender.Config.HMACKey != "" {
@@ -279,9 +321,9 @@ func (sender *MetricsSender) SendMetricsJSON(client *resty.Client, metrics []mod
 	return response.Message, nil
 }
 
-// LoadPublicKeyIfExists loads public key if it exists in FS,
+// loadPublicKeyIfExists loads public key if it exists in FS,
 // if loaded - will be used to encode requests to server
-func (sender *MetricsSender) LoadPublicKeyIfExists() {
+func (sender *MetricsSender) loadPublicKeyIfExists() {
 	if sender.Config.CryptoKey == "" {
 		logger.Sugar.Info("crypto key path not specified")
 		return
@@ -337,6 +379,34 @@ func (sender *MetricsSender) LoadPublicKeyIfExists() {
 	logger.Sugar.Info("successfully loaded public key")
 }
 
+func (sender *MetricsSender) SendGrpcMetrics(metrics []models.Metrics) {
+	ctx := context.Background()
+
+	md := metadata.New(map[string]string{"X-Real-IP": sender.localIP})
+	ctx = metadata.NewOutgoingContext(ctx, md)
+	_, err := sender.gprcClient.UpdateMetrics(ctx, pb.UpdateMetricsRequest_builder{
+		Metrics: MetricsToPbMetrics(metrics),
+	}.Build())
+	if err != nil {
+		logger.Sugar.Errorf("error sending metrics: %s", err)
+	}
+}
+
+func (sender *MetricsSender) createGrpcClientIfNeeded() {
+	if sender.Config.GrpcServerAddress == "" {
+		return
+	}
+
+	var err error
+	sender.grpcConnection, err = grpc.NewClient(sender.Config.GrpcServerAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		slog.Error("error connecting to gRPC server", "error", err)
+		return
+	}
+
+	sender.gprcClient = pb.NewMetricsClient(sender.grpcConnection)
+}
+
 func (sender *MetricsSender) encryptBytes(message []byte) ([]byte, error) {
 	// Calculate maximum message size per chunk
 	// For RSA OAEP with SHA-256: keySize/8 - 2*hashSize - 2
@@ -367,4 +437,40 @@ func (sender *MetricsSender) encryptBytes(message []byte) ([]byte, error) {
 	}
 
 	return encryptedData, nil
+}
+
+func getLocalIPAddress() (string, error) {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	logger.Sugar.Info("Local IP:", localAddr.IP)
+
+	return localAddr.IP.String(), nil
+}
+
+func MetricsToPbMetrics(metrics []models.Metrics) []*pb.Metric {
+	result := make([]*pb.Metric, len(metrics))
+	for i := 0; i < len(metrics); i++ {
+		result[i] = metricToPbMetric(metrics[i])
+	}
+	return result
+}
+
+func metricToPbMetric(m models.Metrics) *pb.Metric {
+	result := pb.Metric_builder{
+		Id: m.ID,
+	}
+	switch m.MType {
+	case models.Gauge:
+		result.Type = pb.Metric_GAUGE
+		result.Value = *m.Value
+	case models.Counter:
+		result.Type = pb.Metric_COUNTER
+		result.Delta = *m.Delta
+	}
+	return result.Build()
 }

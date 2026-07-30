@@ -24,7 +24,7 @@ func NewAgent(config *AgentConfig) *MetricsAgent {
 		collector: NewCollector(config),
 		sender:    NewSender(config),
 	}
-	agent.sender.LoadPublicKeyIfExists()
+	agent.sender.Init()
 	return &agent
 }
 
@@ -56,6 +56,7 @@ func (agent *MetricsAgent) CollectAndSendMetricsInLoop() {
 	}()
 
 	wg.Wait()
+	agent.sender.Close()
 
 	logger.Sugar.Info("finish collecting and sending metrics. workers stopped")
 }

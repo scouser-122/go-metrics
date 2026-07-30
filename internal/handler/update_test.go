@@ -31,6 +31,7 @@ type request struct {
 	contentType string
 	path        string
 	body        string
+	headers     map[string]string
 }
 
 var updateTestsMemStorage = []struct {
@@ -156,7 +157,7 @@ func TestUpdateHandlerMemStorage(t *testing.T) {
 
 			handlers := InitializeHandlers(metricsService, &cryptoService, nil)
 
-			r := CreateChiRouterWithHandlers(&handlers)
+			r := CreateChiRouterWithHandlers(&handlers, &serverConfig)
 
 			request := httptest.NewRequest(test.request.method, test.request.path, nil)
 			request.Header.Add("Content-Type", test.request.contentType)
@@ -198,7 +199,7 @@ func ExampleUpdateHandler_UpdateHandler() {
 	metricsService := service.NewMetricsService(&serverConfig, &db.PostgresDatabase{}, eventBroker)
 
 	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
-	r := CreateChiRouterWithHandlers(&handlers)
+	r := CreateChiRouterWithHandlers(&handlers, &serverConfig)
 
 	// call handler
 	request := httptest.NewRequest(http.MethodPost, "/update/counter/TestCounter/10", nil)
@@ -350,7 +351,7 @@ func TestUpdateJSONHandler(t *testing.T) {
 			metricsService := service.NewMetricsService(&serverConfig, &db.PostgresDatabase{}, eventBroker)
 			handlers := InitializeHandlers(metricsService, &cryptoService, nil)
 
-			r := CreateChiRouterWithHandlers(&handlers)
+			r := CreateChiRouterWithHandlers(&handlers, &serverConfig)
 
 			var bodyReader io.Reader
 			var bodyHash string
@@ -406,7 +407,7 @@ func ExampleUpdateHandler_UpdateJSONHandler() {
 	})
 
 	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
-	r := CreateChiRouterWithHandlers(&handlers)
+	r := CreateChiRouterWithHandlers(&handlers, &serverConfig)
 
 	// call handler
 	body := `{"id":"TestCounter","type":"counter","delta":100}`
@@ -506,7 +507,7 @@ func ExampleUpdateHandler_UpdateJSONArrayHandler() {
 	})
 
 	handlers := InitializeHandlers(metricsService, &cryptoService, nil)
-	r := CreateChiRouterWithHandlers(&handlers)
+	r := CreateChiRouterWithHandlers(&handlers, &serverConfig)
 
 	// call handler
 	body := `[{"id":"TestCounter","type":"counter","delta":100},{"id":"TestGauge","type":"gauge","value":123.50}]`

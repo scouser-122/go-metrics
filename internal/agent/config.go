@@ -30,6 +30,7 @@ type AgentConfig struct {
 	RetryConfig        config.RetryConfig `json:"retry_config"`
 	CollectChannelSize int                `json:"collect_channel_size"`
 	ConfigFile         string             `env:"CONFIG"`
+	GrpcServerAddress  string             `env:"GRPC_SERVER_ADDRESS" json:"grpc_server_address"`
 }
 
 func (a *AgentConfig) merge(other *AgentConfig) {
@@ -85,6 +86,9 @@ func (a *AgentConfig) merge(other *AgentConfig) {
 	if other.CollectChannelSize != a.CollectChannelSize {
 		a.CollectChannelSize = other.CollectChannelSize
 	}
+	if other.GrpcServerAddress != "" && other.GrpcServerAddress != a.GrpcServerAddress {
+		a.GrpcServerAddress = other.GrpcServerAddress
+	}
 }
 
 // GetDefaultAgentConfig returns an AgentConfig instance with default values.
@@ -131,16 +135,17 @@ func GetDefaultAgentConfig() AgentConfig {
 }
 
 type agentConfigFlags struct {
-	serverAddress    *string
-	logLevel         *string
-	environment      *string
-	reportInterval   *int
-	pollInterval     *int
-	configFile       *string
-	configFileLong   *string
-	fHMACKey         *string
-	requestRateLimit *int
-	cryptoKey        *string
+	serverAddress     *string
+	logLevel          *string
+	environment       *string
+	reportInterval    *int
+	pollInterval      *int
+	configFile        *string
+	configFileLong    *string
+	fHMACKey          *string
+	requestRateLimit  *int
+	cryptoKey         *string
+	grpcServerAddress *string
 }
 
 func (af *agentConfigFlags) define() {
@@ -154,6 +159,7 @@ func (af *agentConfigFlags) define() {
 	af.fHMACKey = flag.String("k", "", "HMAC key to calculate hash of request")
 	af.requestRateLimit = flag.Int("l", 3, "send metrics request rate limit")
 	af.cryptoKey = flag.String("crypto-key", "", "private key path to decode requests")
+	af.grpcServerAddress = flag.String("grpc-server-address", "", "gRPC server address")
 }
 
 // Load sequentually loads config from different sources
@@ -210,6 +216,8 @@ func (a *AgentConfig) parseFlags(af *agentConfigFlags) {
 			a.RequestRateLimit = *af.requestRateLimit
 		case "crypto-key":
 			a.CryptoKey = *af.cryptoKey
+		case "grpc-server-address":
+			a.GrpcServerAddress = *af.grpcServerAddress
 		}
 	})
 }

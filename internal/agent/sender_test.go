@@ -300,7 +300,7 @@ func TestSendMetricsJSON(t *testing.T) {
 			client := resty.New()
 			sender.Config.ServerAddress = server.URL
 			sender.Config.CryptoKey = pubKeyFile.Name()
-			sender.LoadPublicKeyIfExists()
+			sender.loadPublicKeyIfExists()
 
 			// send request and check response
 			result, err := sender.SendMetricsJSON(client, test.metrics)
